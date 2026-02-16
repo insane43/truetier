@@ -96,6 +96,8 @@
       cursor: pointer;
     }
     .chat-input-row button:hover { background: #e63d4d; }
+    .chat-input-row button#chatCallBtn { background: var(--border); color: var(--text); }
+    .chat-input-row button#chatCallBtn:hover { background: #2a2830; }
     .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
     .no-access a { color: var(--accent); }
   </style>
@@ -106,6 +108,7 @@
     <nav class="nav">
       <a href="/">Home</a>
       <a href="/profile">Profile</a>
+      <a href="/chat">Support chat</a>
     </nav>
   </header>
   <main>
@@ -118,6 +121,7 @@
       <div class="chat-input-row">
         <input type="text" id="chatInput" placeholder="Type a message...">
         <button type="button" id="chatSend">Send</button>
+        <button type="button" id="chatCallBtn" title="Request a call from support">Call</button>
       </div>
     </div>
   </main>
@@ -145,13 +149,18 @@
         window.location.href = '/login';
         return;
       }
-      db.ref('users/' + user.uid + '/badges/customer').once('value', function(snap) {
+      var chatInitialized = false;
+      db.ref('users/' + user.uid + '/badges/customer').on('value', function(snap) {
         if (!snap.val()) {
           document.getElementById('noAccess').style.display = 'block';
+          document.getElementById('chatBox').style.display = 'none';
           return;
         }
+        document.getElementById('noAccess').style.display = 'none';
         document.getElementById('chatBox').style.display = 'flex';
         var chatId = user.uid;
+        if (chatInitialized) return;
+        chatInitialized = true;
         db.ref('chats/' + chatId).once('value', function(snap) {
           if (!snap.exists()) {
             db.ref('chats/' + chatId).set({
@@ -187,6 +196,21 @@
               }).then(function() {
                 db.ref('chats/' + chatId).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
                 input.value = '';
+              });
+            });
+          };
+        document.getElementById('chatCallBtn').onclick = function() {
+            db.ref('users/' + user.uid).once('value', function(s) {
+              var d = s.val();
+              var phone = (d && d.phone) ? d.phone.trim() : '';
+              var msg = '[Requested a call from support. We\'ll call you soon.]' + (phone ? ' Phone: ' + phone : ' (Add your number in Profile for faster callbacks)');
+              db.ref('chats/' + chatId + '/messages').push({
+                text: msg,
+                isAdmin: false,
+                displayName: (d && d.displayName) || user.email.split('@')[0],
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+              }).then(function() {
+                db.ref('chats/' + chatId).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
               });
             });
           };

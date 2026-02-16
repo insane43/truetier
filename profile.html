@@ -145,6 +145,8 @@
       <p class="value" id="profileValorant">–</p>
       <label>Email</label>
       <p class="value email" id="profileEmail">–</p>
+      <label>Phone (for callbacks)</label>
+      <input type="tel" id="profilePhone" placeholder="Optional – used when you request a call in chat" style="max-width:100%;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.95rem;margin-bottom:1rem;">
       <div class="danger-zone">
         <p>Permanently delete your account and all associated data. This cannot be undone.</p>
         <button type="button" class="btn btn-danger" id="btnDeleteAccount">Delete account</button>
@@ -199,7 +201,7 @@
       document.getElementById('profileName2').textContent = defaultName;
       document.getElementById('profileValorant').textContent = '–';
       document.getElementById('profileImg').src = defaultImg;
-      db.ref('users/' + user.uid).once('value', function(snap) {
+      db.ref('users/' + user.uid).on('value', function(snap) {
         var d = snap.val();
         if (d) {
           if (d.displayName) {
@@ -208,18 +210,26 @@
           }
           if (d.valorantName) document.getElementById('profileValorant').textContent = d.valorantName;
           if (d.photoURL) document.getElementById('profileImg').src = d.photoURL;
+          document.getElementById('profilePhone').value = d.phone || '';
           var badges = d.badges || {};
           var html = '';
           if (badges.community) html += '<span class="badge badge-community">Community</span>';
           if (badges.customer) {
             html += '<span class="badge badge-customer">Customer</span>';
             document.getElementById('navChat').style.display = 'inline';
+          } else {
+            document.getElementById('navChat').style.display = 'none';
           }
           document.getElementById('profileBadges').innerHTML = html || '';
         }
       });
     });
 
+    document.getElementById('profilePhone').onblur = function() {
+      if (!auth.currentUser) return;
+      var phone = document.getElementById('profilePhone').value.trim();
+      db.ref('users/' + auth.currentUser.uid).update({ phone: phone || null });
+    };
     document.getElementById('pfpInput').onchange = function() {
       var file = this.files[0];
       if (!file || !auth.currentUser) return;

@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     :root {
       --bg: #060608;
@@ -443,6 +444,16 @@
     .modal .actions button { flex: 1; padding: 0.65rem; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; }
     .modal .actions .primary { background: var(--accent); color: #fff; }
     .modal .actions .secondary { background: var(--border); color: var(--text); }
+    .ticket-item { padding: 0.75rem 1rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.2s; }
+    .ticket-item:hover { border-color: var(--accent); }
+    .ticket-item strong { display: block; margin-bottom: 0.25rem; }
+    .ticket-item span { font-size: 0.85rem; color: var(--text-muted); }
+    .ticket-thread-msg { padding: 0.6rem 0.75rem; margin-bottom: 0.5rem; border-radius: var(--radius-sm); font-size: 0.9rem; border-left: 3px solid var(--border); }
+    .ticket-thread-msg.admin { background: var(--accent-soft); border-left-color: var(--accent); }
+    .ticket-thread-msg .meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .ticket-thread-msg .attachments { margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .ticket-thread-msg .attachments a { display: block; }
+    .ticket-thread-msg .attachments img { max-width: 120px; max-height: 120px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
     .toast {
       position: fixed;
       bottom: 1.5rem;
@@ -479,7 +490,6 @@
     <div class="nav-actions">
       <a href="/admin" class="btn-outline">Admin</a>
       <button type="button" class="btn-outline" id="btnTicket">Support ticket</button>
-      <button type="button" class="btn-outline" id="btnRequestCall" style="display:none;">Request call</button>
       <button type="button" class="btn-outline" id="btnReview" style="display:none;">Leave review</button>
       <div class="profile-wrap" id="profileWrap" style="display: none;">
         <button type="button" class="profile-btn" id="profileBtn">
@@ -594,15 +604,37 @@
   </div>
 
   <div class="modal-overlay" id="ticketModal">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3>Support ticket</h3>
-      <label>Subject</label>
-      <input type="text" id="ticketSubject" placeholder="Brief subject">
-      <label>Message</label>
-      <textarea id="ticketMessage" placeholder="Describe your issue or question..."></textarea>
-      <div class="actions">
-        <button type="button" class="secondary" id="ticketCancel">Cancel</button>
-        <button type="button" class="primary" id="ticketSubmit">Send</button>
+    <div class="modal ticket-modal" onclick="event.stopPropagation()">
+      <div id="ticketScreenCreate">
+        <h3>Support ticket</h3>
+        <p style="margin-bottom:0.75rem;"><button type="button" class="secondary" id="ticketShowMy">My tickets</button></p>
+        <label>Subject</label>
+        <input type="text" id="ticketSubject" placeholder="Brief subject">
+        <label>Message</label>
+        <textarea id="ticketMessage" placeholder="Describe your issue or question..."></textarea>
+        <label style="margin-top:0.5rem;">Attach images (optional)</label>
+        <input type="file" id="ticketCreateFiles" accept="image/*" multiple style="margin-bottom:0.5rem;font-size:0.9rem;">
+        <div class="actions">
+          <button type="button" class="secondary" id="ticketCancel">Cancel</button>
+          <button type="button" class="primary" id="ticketSubmit">Send</button>
+        </div>
+      </div>
+      <div id="ticketScreenList" style="display:none;">
+        <h3>My tickets</h3>
+        <p style="margin-bottom:0.75rem;"><button type="button" class="secondary" id="ticketBackToCreate">New ticket</button></p>
+        <div id="ticketMyList"></div>
+      </div>
+      <div id="ticketScreenThread" style="display:none;">
+        <h3 id="ticketThreadSubject">Ticket</h3>
+        <p style="margin-bottom:0.75rem;"><button type="button" class="secondary" id="ticketBackToList">← Back to list</button></p>
+        <div id="ticketThreadMessages"></div>
+        <label>Add a message</label>
+        <textarea id="ticketReplyText" placeholder="Type your message..."></textarea>
+        <label style="margin-top:0.5rem;">Attach images (optional)</label>
+        <input type="file" id="ticketReplyFiles" accept="image/*" multiple style="margin-bottom:0.5rem;font-size:0.9rem;">
+        <div class="actions">
+          <button type="button" class="primary" id="ticketReplySubmit">Send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -627,20 +659,8 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="callModal">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3>Request a call</h3>
-      <p style="color:var(--text-muted);font-size:0.9rem;margin-bottom:1rem;">We’ll create a support ticket and get back to you. Leave your preferred contact time or number if you’d like.</p>
-      <label>Message</label>
-      <textarea id="callMessage" placeholder="When can we call? Or leave your number..."></textarea>
-      <div class="actions">
-        <button type="button" class="secondary" id="callCancel">Cancel</button>
-        <button type="button" class="primary" id="callSubmit">Request call</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
+We’ll   <div class="toast" id="toast"></div>
+  <!--’d   <div class="toast" id="toast"></div>
 
   <script>
     const firebaseConfig = {
@@ -655,6 +675,7 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    const storage = firebase.storage();
 
     function showToast(msg) {
       var el = document.getElementById('toast');
@@ -685,7 +706,7 @@
           document.getElementById('bannedScreen').classList.add('show');
           return;
         }
-        db.ref('users/' + user.uid).once('value', function(s) {
+        db.ref('users/' + user.uid).on('value', function(s) {
           var d = s.val() || {};
           if (!d.badges || !d.badges.community) {
             db.ref('users/' + user.uid + '/badges/community').set(true);
@@ -703,9 +724,10 @@
           if (badges.community) badgesHtml += '<span class="badge-mini community">Community</span>';
           if (badges.customer) {
             badgesHtml += '<span class="badge-mini customer">Customer</span>';
-            document.getElementById('btnRequestCall').style.display = 'inline-block';
             document.getElementById('btnReview').style.display = 'inline-block';
             document.getElementById('profileDropChat').style.display = 'block';
+          } else {
+            document.getElementById('profileDropChat').style.display = 'none';
           }
           document.getElementById('profileDropBadges').innerHTML = badgesHtml;
         });
@@ -767,11 +789,14 @@
       track.innerHTML = html + html;
     });
 
-    db.ref('announcements').orderByChild('createdAt').limitToLast(10).on('value', function(snap) {
+    db.ref('announcements').orderByChild('createdAt').limitToLast(20).on('value', function(snap) {
       var list = document.getElementById('announcementsList');
+      var now = Date.now();
       var items = [];
       snap.forEach(function(c) {
         var v = c.val();
+        var expiresAt = v.expiresAt || null;
+        if (expiresAt != null && expiresAt < now) return;
         items.push({ title: v.title || '', body: v.body || '' });
       });
       items.reverse();
@@ -796,9 +821,18 @@
       if (wrap && !wrap.contains(e.target)) document.getElementById('profileDrop').classList.remove('open');
     });
 
+    var currentTicketId = null;
+    function ticketShowScreen(name) {
+      document.getElementById('ticketScreenCreate').style.display = name === 'create' ? 'block' : 'none';
+      document.getElementById('ticketScreenList').style.display = name === 'list' ? 'block' : 'none';
+      document.getElementById('ticketScreenThread').style.display = name === 'thread' ? 'block' : 'none';
+    }
     document.getElementById('btnTicket').onclick = function() {
       document.getElementById('ticketSubject').value = '';
       document.getElementById('ticketMessage').value = '';
+      document.getElementById('ticketCreateFiles').value = '';
+      currentTicketId = null;
+      ticketShowScreen('create');
       document.getElementById('ticketModal').classList.add('show');
     };
     document.getElementById('ticketCancel').onclick = function() {
@@ -807,12 +841,107 @@
     document.getElementById('ticketModal').onclick = function(e) {
       if (e.target.id === 'ticketModal') document.getElementById('ticketModal').classList.remove('show');
     };
+    document.getElementById('ticketShowMy').onclick = function() {
+      ticketShowScreen('list');
+      var u = auth.currentUser;
+      if (!u) return;
+      document.getElementById('ticketMyList').innerHTML = '<p class="loading">Loading…</p>';
+      db.ref('tickets').orderByChild('userId').equalTo(u.uid).once('value', function(snap) {
+        var items = [];
+        snap.forEach(function(c) { items.push({ id: c.key, v: c.val() }); });
+        items.sort(function(a, b) { return (b.v.createdAt || 0) - (a.v.createdAt || 0); });
+        var listEl = document.getElementById('ticketMyList');
+        if (items.length === 0) {
+          listEl.innerHTML = '<p style="color:var(--text-muted);">No tickets yet. Create one above.</p>';
+          return;
+        }
+        listEl.innerHTML = items.map(function(t) {
+          var sub = (t.v.subject || 'No subject');
+          var status = t.v.status || 'open';
+          var date = t.v.createdAt ? new Date(t.v.createdAt).toLocaleDateString() : '';
+          return '<div class="ticket-item" data-tid="' + escapeHtml(t.id) + '">' +
+            '<strong>' + escapeHtml(sub) + '</strong><span>' + status + ' · ' + date + '</span></div>';
+        }).join('');
+        listEl.querySelectorAll('.ticket-item').forEach(function(el) {
+          el.onclick = function() {
+            currentTicketId = el.getAttribute('data-tid');
+            document.getElementById('ticketThreadSubject').textContent = el.querySelector('strong').textContent || 'Ticket';
+            document.getElementById('ticketReplyText').value = '';
+            ticketShowScreen('thread');
+            var msgEl = document.getElementById('ticketThreadMessages');
+            msgEl.innerHTML = '<p class="loading">Loading…</p>';
+            function attachmentsHtml(arr) {
+                if (!arr || !arr.length) return '';
+                return '<div class="attachments">' + arr.map(function(a) {
+                  return '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(a.url) + '" alt=""></a>';
+                }).join('') + '</div>';
+              }
+              db.ref('tickets/' + currentTicketId).on('value', function(s) {
+              var v = s.val();
+              if (!v) { msgEl.innerHTML = '<p class="err">Ticket not found.</p>'; return; }
+              var parts = [];
+              parts.push('<div class="ticket-thread-msg">' + escapeHtml(v.message || '') + attachmentsHtml(v.attachments) + '<div class="meta">You · ' + (v.createdAt ? new Date(v.createdAt).toLocaleString() : '') + '</div></div>');
+              var replies = v.replies || {};
+              var keys = Object.keys(replies).sort(function(a, b) { return (replies[a].createdAt || 0) - (replies[b].createdAt || 0); });
+              keys.forEach(function(k) {
+                var r = replies[k];
+                var who = r.isAdmin ? 'Admin' : 'You';
+                parts.push('<div class="ticket-thread-msg' + (r.isAdmin ? ' admin' : '') + '">' + escapeHtml(r.message || '') + attachmentsHtml(r.attachments) + '<div class="meta">' + who + ' · ' + (r.createdAt ? new Date(r.createdAt).toLocaleString() : '') + '</div></div>');
+              });
+              msgEl.innerHTML = parts.join('');
+            });
+          };
+        });
+      });
+    };
+    document.getElementById('ticketBackToCreate').onclick = function() { ticketShowScreen('create'); };
+    document.getElementById('ticketBackToList').onclick = function() {
+      if (currentTicketId) db.ref('tickets/' + currentTicketId).off('value');
+      ticketShowScreen('list');
+      document.getElementById('ticketShowMy').click();
+    };
+    document.getElementById('ticketReplySubmit').onclick = function() {
+      var msg = document.getElementById('ticketReplyText').value.trim();
+      if (!msg || !currentTicketId) { showToast('Enter a message.'); return; }
+      var u = auth.currentUser;
+      if (!u) return;
+      var files = document.getElementById('ticketReplyFiles').files;
+      var replyData = { message: msg, isAdmin: false, createdAt: firebase.database.ServerValue.TIMESTAMP, attachments: [] };
+      db.ref('tickets/' + currentTicketId + '/replies').push(replyData).then(function(ref) {
+        var replyId = ref.key;
+        if (files.length === 0) {
+          db.ref('tickets/' + currentTicketId).update({ status: 'open' });
+          document.getElementById('ticketReplyText').value = '';
+          document.getElementById('ticketReplyFiles').value = '';
+          showToast('Message sent.');
+          return;
+        }
+        var uploads = [];
+        var replyNames = [];
+        for (var i = 0; i < files.length; i++) {
+          if (!files[i].type || files[i].type.indexOf('image') !== 0) continue;
+          replyNames.push(files[i].name);
+          var path = 'ticketAttachments/' + u.uid + '/' + currentTicketId + '/' + replyId + '/' + files[i].name;
+          uploads.push(storage.ref(path).put(files[i]).then(function(s) { return s.ref.getDownloadURL(); }));
+        }
+        Promise.all(uploads).then(function(urls) {
+          var att = urls.map(function(url, idx) { return { url: url, name: replyNames[idx] || 'image' }; });
+          return db.ref('tickets/' + currentTicketId + '/replies/' + replyId).update({ attachments: att });
+        }).then(function() {
+          db.ref('tickets/' + currentTicketId).update({ status: 'open' });
+          document.getElementById('ticketReplyText').value = '';
+          document.getElementById('ticketReplyFiles').value = '';
+          showToast('Message sent.');
+        }).catch(function(e) { showToast('Failed: ' + e.message); });
+      }).catch(function(e) { showToast('Failed: ' + e.message); });
+    };
     document.getElementById('ticketSubmit').onclick = function() {
       var sub = document.getElementById('ticketSubject').value.trim();
       var msg = document.getElementById('ticketMessage').value.trim();
       if (!sub || !msg) { showToast('Please fill subject and message.'); return; }
       var u = auth.currentUser;
       if (!u) return;
+      var files = document.getElementById('ticketCreateFiles').files;
       db.ref('tickets').push({
         userId: u.uid,
         userEmail: u.email,
@@ -820,10 +949,32 @@
         message: msg,
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         status: 'open',
-        replies: {}
-      }).then(function() {
-        document.getElementById('ticketModal').classList.remove('show');
-        showToast('Ticket submitted. We\'ll get back to you soon.');
+        replies: {},
+        attachments: []
+      }).then(function(ref) {
+        var ticketId = ref.key;
+        if (files.length === 0) {
+          document.getElementById('ticketModal').classList.remove('show');
+          document.getElementById('ticketCreateFiles').value = '';
+          showToast('Ticket submitted. We\'ll get back to you soon.');
+          return;
+        }
+        var uploads = [];
+        var createNames = [];
+        for (var i = 0; i < files.length; i++) {
+          if (!files[i].type || files[i].type.indexOf('image') !== 0) continue;
+          createNames.push(files[i].name);
+          var path = 'ticketAttachments/' + u.uid + '/' + ticketId + '/' + files[i].name;
+          uploads.push(storage.ref(path).put(files[i]).then(function(s) { return s.ref.getDownloadURL(); }));
+        }
+        Promise.all(uploads).then(function(urls) {
+          var att = urls.map(function(url, idx) { return { url: url, name: createNames[idx] || 'image' }; });
+          return db.ref('tickets/' + ticketId).update({ attachments: att });
+        }).then(function() {
+          document.getElementById('ticketModal').classList.remove('show');
+          document.getElementById('ticketCreateFiles').value = '';
+          showToast('Ticket submitted. We\'ll get back to you soon.');
+        }).catch(function(e) { showToast('Failed: ' + e.message); });
       }).catch(function(e) { showToast('Failed: ' + e.message); });
     };
 
@@ -863,35 +1014,6 @@
           }).catch(function(e) { showToast('Failed: ' + e.message); });
         });
       });
-    };
-
-    document.getElementById('btnRequestCall').onclick = function() {
-      document.getElementById('callMessage').value = '';
-      document.getElementById('callModal').classList.add('show');
-    };
-    document.getElementById('callCancel').onclick = function() {
-      document.getElementById('callModal').classList.remove('show');
-    };
-    document.getElementById('callModal').onclick = function(e) {
-      if (e.target.id === 'callModal') document.getElementById('callModal').classList.remove('show');
-    };
-    document.getElementById('callSubmit').onclick = function() {
-      var msg = document.getElementById('callMessage').value.trim();
-      var u = auth.currentUser;
-      if (!u) return;
-      db.ref('tickets').push({
-        userId: u.uid,
-        userEmail: u.email,
-        subject: 'Request call',
-        message: msg || 'Customer requested a call back.',
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        status: 'open',
-        type: 'call',
-        replies: {}
-      }).then(function() {
-        document.getElementById('callModal').classList.remove('show');
-        showToast('Request received. We\'ll contact you soon.');
-      }).catch(function(e) { showToast('Failed: ' + e.message); });
     };
   </script>
 </body>
