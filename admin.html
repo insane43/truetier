@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – TrueTier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg: #0c0b0d;
+      --bg-card: #141216;
+      --border: #2a2528;
+      --accent: #ff4655;
+      --text: #f0eef0;
+      --text-muted: #8a858a;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+    .gate-screen, .auth-screen, .panel-screen { display: none; padding: 2rem; max-width: 480px; margin: 0 auto; text-align: center; }
+    .gate-screen.show, .auth-screen.show, .panel-screen.show { display: block; }
+    .gate-screen h2, .auth-screen h2 { color: var(--accent); margin-bottom: 0.5rem; }
+    .gate-screen p, .auth-screen p { color: var(--text-muted); }
+    .back-home {
+      display: inline-block;
+      margin-top: 1.25rem;
+      padding: 0.5rem 1rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .back-home:hover { color: var(--accent); border-color: var(--accent); background: rgba(255, 70, 85, 0.08); }
+    .panel-screen .back-home { margin-top: 0; margin-bottom: 1rem; }
+    .auth-screen input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .auth-screen button {
+      width: 100%;
+      padding: 0.75rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .panel-screen { max-width: 900px; text-align: left; }
+    .panel-screen h1 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--accent); }
+    .admin-status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding: 0.6rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .admin-status-bar label { margin: 0; display: inline; }
+    .admin-status-bar select {
+      padding: 0.4rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+    }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tabs button {
+      padding: 0.6rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--text); }
+    .card label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .card input, .card textarea {
+      width: 100%;
+      padding: 0.6rem 1rem;
+      margin-bottom: 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+    }
+    .card textarea { min-height: 80px; resize: vertical; }
+    .card button {
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .card button.secondary { background: var(--border); }
+    .card button.danger { background: #c53030; }
+    .user-row, .ticket-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .user-row.banned { border-color: var(--accent); opacity: 0.85; }
+    .user-info, .ticket-info { font-size: 0.9rem; }
+    .user-info strong, .ticket-info strong { color: var(--accent); }
+    .user-actions, .ticket-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .ticket-detail {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+    .ticket-detail .reply { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .ticket-detail .reply.admin { border-left: 3px solid var(--accent); padding-left: 0.75rem; }
+    .ticket-detail textarea { margin-top: 0.5rem; min-height: 60px; }
+    .loading { color: var(--text-muted); }
+    .err { color: var(--accent); font-size: 0.9rem; margin-top: 0.5rem; line-height: 1.5; max-width: 100%; }
+    .err strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="gate-screen" id="gateScreen">
+    <h2>Access denied</h2>
+    <p>This page is only accessible from an authorized network.</p>
+    <a href="index.html" class="back-home">← Back to home</a>
+  </div>
+  <div class="auth-screen" id="authScreen">
+    <h2>Admin login</h2>
+    <p style="margin-bottom:1rem;">Sign in with your admin account.</p>
+    <input type="text" id="adminEmail" placeholder="Username" value="admin" autocomplete="username">
+    <input type="password" id="adminPass" placeholder="Password" value="password" autocomplete="current-password">
+    <button type="button" id="adminLogin">Log in</button>
+    <p class="err" id="authErr"></p>
+    <a href="index.html" class="back-home">← Back to home</a>
+  </div>
+  <div class="panel-screen" id="panelScreen">
+    <a href="index.html" class="back-home">← Back to home</a>
+    <h1>Admin panel</h1>
+    <div class="tabs">
+      <button type="button" data-tab="announcements">Announcements</button>
+      <button type="button" data-tab="users">Users</button>
+      <button type="button" data-tab="tickets">Tickets</button>
+      <button type="button" data-tab="chats">Chats</button>
+    </div>
+    <div class="admin-status-bar">
+      <label>Your status:</label>
+      <select id="adminStatus">
+        <option value="online">Online</option>
+        <option value="away">Away</option>
+        <option value="dnd">Do Not Disturb</option>
+      </select>
+    </div>
+    <div id="tabAnnouncements" class="tab-panel">
+      <div class="card">
+        <h3>New announcement</h3>
+        <label>Title</label>
+        <input type="text" id="annTitle" placeholder="Title">
+        <label>Body</label>
+        <textarea id="annBody" placeholder="Message..."></textarea>
+        <button type="button" id="annSubmit">Publish</button>
+      </div>
+      <p class="loading" id="annList">Loading…</p>
+    </div>
+    <div id="tabUsers" class="tab-panel">
+      <p class="loading" id="usersList">Loading users…</p>
+    </div>
+    <div id="tabTickets" class="tab-panel">
+      <p class="loading" id="ticketsList">Loading tickets…</p>
+    </div>
+    <div id="tabChats" class="tab-panel">
+      <p class="loading" id="chatsList">Loading chats…</p>
+    </div>
+  </div>
+
+  <script>
+    var ALLOWED_IP = '172.56.25.44'; // Admin login: create Firebase user email admin@truetier.com, password password. IP verified after sign-in.
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Ir6slVIVLH2ax4Ypd7mgowhIXIl_Qhk",
+      authDomain: "truetier-9567f.firebaseapp.com",
+      databaseURL: "https://truetier-9567f-default-rtdb.firebaseio.com",
+      projectId: "truetier-9567f",
+      storageBucket: "truetier-9567f.firebasestorage.app",
+      messagingSenderId: "112020148911",
+      appId: "1:112020148911:web:ca2338326009d12656ba5a"
+    };
+
+    function show(el) { document.querySelectorAll('.gate-screen, .auth-screen, .panel-screen').forEach(function(e) { e.classList.remove('show'); }); el.classList.add('show'); }
+
+    function checkIp() {
+      var req = new XMLHttpRequest();
+      req.open('GET', 'https://api.ipify.org?format=json');
+      req.onload = function() {
+        try {
+          var ip = JSON.parse(req.responseText).ip;
+          if (ip === ALLOWED_IP) {
+            show(document.getElementById('authScreen'));
+            initFirebase();
+          } else {
+            show(document.getElementById('gateScreen'));
+          }
+        } catch (e) {
+          show(document.getElementById('gateScreen'));
+        }
+      };
+      req.onerror = function() { show(document.getElementById('gateScreen')); };
+      req.send();
+    }
+
+    function initFirebase() {
+      firebase.initializeApp(firebaseConfig);
+      var auth = firebase.auth();
+      var db = firebase.database();
+
+      auth.onAuthStateChanged(function(user) {
+        if (!user) {
+          show(document.getElementById('authScreen'));
+          return;
+        }
+        var email = (user.email || '').toLowerCase();
+        if (email !== 'admin@truetier.com') {
+          document.getElementById('authErr').textContent = 'Not an admin account.';
+          auth.signOut();
+          show(document.getElementById('authScreen'));
+          return;
+        }
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://api.ipify.org?format=json');
+        xhr.onload = function() {
+          try {
+            var ip = JSON.parse(xhr.responseText).ip;
+            if (ip !== ALLOWED_IP) {
+              auth.signOut();
+              document.getElementById('authErr').textContent = 'Access denied. You must be on the authorized network (IP: ' + ALLOWED_IP + ').';
+              show(document.getElementById('authScreen'));
+              return;
+            }
+            show(document.getElementById('panelScreen'));
+            runAdminPanel(auth, db);
+          } catch (e) {
+            auth.signOut();
+            document.getElementById('authErr').textContent = 'Could not verify network.';
+            show(document.getElementById('authScreen'));
+          }
+        };
+        xhr.onerror = function() {
+          auth.signOut();
+          document.getElementById('authErr').textContent = 'Could not verify network.';
+          show(document.getElementById('authScreen'));
+        };
+        xhr.send();
+      });
+
+      document.getElementById('adminLogin').onclick = function() {
+        var err = document.getElementById('authErr');
+        err.textContent = '';
+        var rawEmail = document.getElementById('adminEmail').value.trim();
+        var email = (rawEmail === 'admin' || rawEmail.indexOf('@') === -1) ? 'admin@truetier.com' : rawEmail;
+        var password = document.getElementById('adminPass').value;
+        auth.signInWithEmailAndPassword(email, password).catch(function(e) {
+          var code = (e && e.code) ? e.code : '';
+          if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') {
+            err.innerHTML = 'No admin account found. In Firebase Console go to <strong>Authentication → Users → Add user</strong> and create a user with email <strong>admin@truetier.com</strong> and password <strong>password</strong>, then try again.';
+          } else {
+            err.textContent = e.message || 'Login failed.';
+          }
+        });
+      };
+    }
+
+    function runAdminPanel(auth, db) {
+      document.querySelectorAll('.tabs button').forEach(function(btn) {
+        btn.onclick = function() {
+          document.querySelectorAll('.tabs button').forEach(function(b) { b.classList.remove('active'); });
+          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+          btn.classList.add('active');
+          var tab = btn.getAttribute('data-tab');
+          document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        };
+      });
+      document.querySelector('.tabs button').click();
+
+      document.getElementById('annSubmit').onclick = function() {
+        var title = document.getElementById('annTitle').value.trim();
+        var body = document.getElementById('annBody').value.trim();
+        if (!title || !body) return;
+        db.ref('announcements').push({
+          title: title,
+          body: body,
+          createdAt: firebase.database.ServerValue.TIMESTAMP,
+          createdBy: auth.currentUser.uid
+        }).then(function() {
+          document.getElementById('annTitle').value = '';
+          document.getElementById('annBody').value = '';
+        });
+      };
+
+      db.ref('announcements').orderByChild('createdAt').limitToLast(20).on('value', function(snap) {
+        var html = '';
+        snap.forEach(function(c) {
+          var v = c.val();
+          html += '<div class="card"><h3>' + escapeHtml(v.title) + '</h3><p style="color:var(--text-muted);font-size:0.9rem;">' + escapeHtml(v.body) + '</p></div>';
+        });
+        document.getElementById('annList').innerHTML = html || '<p class="loading">No announcements.</p>';
+      });
+
+      function loadUsers() {
+        var listEl = document.getElementById('usersList');
+        listEl.innerHTML = '<p class="loading">Loading users…</p>';
+        db.ref('users').once('value').then(function(snap) {
+          if (!snap.numChildren()) {
+            listEl.innerHTML = '<p class="loading">No users.</p>';
+            return;
+          }
+          listEl.innerHTML = '';
+          snap.forEach(function(c) {
+            var v = c.val();
+            var uid = c.key;
+            db.ref('bannedUsers/' + uid).once('value').then(function(banSnap) {
+              var banned = banSnap.exists();
+              var row = document.createElement('div');
+              row.className = 'user-row' + (banned ? ' banned' : '');
+              var hasCustomer = v.badges && v.badges.customer;
+              row.innerHTML =
+                '<div class="user-info">' +
+                  '<strong>' + escapeHtml(v.displayName || v.email || uid) + '</strong><br>' +
+                  (v.email ? escapeHtml(v.email) + '<br>' : '') +
+                  (v.valorantName ? 'Valorant: ' + escapeHtml(v.valorantName) : '') +
+                '</div>' +
+                '<div class="user-actions">' +
+                  (banned
+                    ? '<button type="button" class="secondary unban-btn" data-uid="' + uid + '">Unban</button>'
+                    : '<button type="button" class="danger ban-btn" data-uid="' + uid + '">Ban</button>') +
+                  (hasCustomer
+                    ? '<button type="button" class="secondary customer-btn" data-uid="' + uid + '" title="Revoke customer badge">Revoke customer</button>'
+                    : '<button type="button" class="secondary customer-btn" data-uid="' + uid + '" title="Grant customer badge">Grant customer</button>') +
+                  '<button type="button" class="secondary edit-btn" data-uid="' + uid + '" data-name="' + escapeHtml(v.displayName || '') + '" data-valorant="' + escapeHtml(v.valorantName || '') + '">Edit</button>' +
+                '</div>';
+              listEl.appendChild(row);
+            });
+          });
+        });
+      }
+      loadUsers();
+
+      document.getElementById('usersList').addEventListener('click', function(e) {
+        var uid = e.target.getAttribute('data-uid');
+        if (!uid) return;
+        if (e.target.classList.contains('ban-btn')) {
+          db.ref('bannedUsers/' + uid).set({ reason: 'Banned by admin', at: firebase.database.ServerValue.TIMESTAMP }).then(function() {
+            document.getElementById('usersList').innerHTML = 'Loading users…';
+            loadUsers();
+          });
+        } else if (e.target.classList.contains('unban-btn')) {
+          db.ref('bannedUsers/' + uid).remove().then(function() {
+            document.getElementById('usersList').innerHTML = 'Loading users…';
+            loadUsers();
+          });
+        } else if (e.target.classList.contains('edit-btn')) {
+          var name = prompt('Display name', e.target.getAttribute('data-name') || '');
+          if (name === null) return;
+          var valorant = prompt('Valorant name', e.target.getAttribute('data-valorant') || '');
+          if (valorant === null) return;
+          var up = {};
+          if (name !== '') up.displayName = name;
+          if (valorant !== '') up.valorantName = valorant;
+          db.ref('users/' + uid).update(up);
+        } else if (e.target.classList.contains('customer-btn')) {
+          db.ref('users/' + uid + '/badges/customer').once('value', function(s) {
+            var grant = !s.val();
+            db.ref('users/' + uid + '/badges/customer').set(grant ? true : null).then(function() {
+              loadUsers();
+            });
+          });
+        }
+      });
+
+      document.getElementById('adminStatus').onchange = function() {
+        var status = this.value;
+        db.ref('admin/status/' + auth.currentUser.uid).set(status);
+      };
+      db.ref('admin/status/' + auth.currentUser.uid).on('value', function(s) {
+        var v = s.val();
+        if (v) document.getElementById('adminStatus').value = v;
+      });
+
+      db.ref('chats').on('value', function(snap) {
+        var list = document.getElementById('chatsList');
+        list.innerHTML = '';
+        var chats = [];
+        snap.forEach(function(c) { chats.push({ id: c.key, v: c.val() }); });
+        chats.forEach(function(ch) {
+          var v = ch.v;
+          var customerId = ch.id;
+          var div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML =
+            '<div class="ticket-row">' +
+              '<div class="ticket-info"><strong>Chat with customer ' + escapeHtml(customerId) + '</strong></div>' +
+            '</div>' +
+            '<div class="ticket-detail">' +
+              '<div class="chat-messages" data-cid="' + ch.id + '"></div>' +
+              '<textarea placeholder="Reply..." class="chat-reply" data-cid="' + ch.id + '"></textarea>' +
+              '<button type="button" class="reply-btn chat-send-btn" data-cid="' + ch.id + '">Send</button>' +
+            '</div>';
+          list.appendChild(div);
+          var msgEl = div.querySelector('.chat-messages');
+          var msgs = v.messages || {};
+          var keys = Object.keys(msgs).sort(function(a,b) { return (msgs[a].createdAt || 0) - (msgs[b].createdAt || 0); });
+          keys.forEach(function(k) {
+            var m = msgs[k];
+            var p = document.createElement('p');
+            p.className = 'reply ' + (m.isAdmin ? 'admin' : '');
+            p.textContent = (m.displayName || (m.isAdmin ? 'Admin' : 'User')) + ': ' + (m.text || '');
+            msgEl.appendChild(p);
+          });
+        });
+        if (chats.length === 0) list.innerHTML = '<p class="loading">No chats yet.</p>';
+        list.querySelectorAll('.chat-send-btn').forEach(function(btn) {
+          btn.onclick = function() {
+            var cid = btn.getAttribute('data-cid');
+            var textarea = list.querySelector('.chat-reply[data-cid="' + cid + '"]');
+            var msg = textarea.value.trim();
+            if (!msg) return;
+            db.ref('chats/' + cid + '/messages').push({
+              text: msg,
+              isAdmin: true,
+              displayName: 'Admin',
+              createdAt: firebase.database.ServerValue.TIMESTAMP
+            }).then(function() {
+              db.ref('chats/' + cid).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+              textarea.value = '';
+            });
+          };
+        });
+      });
+
+      db.ref('tickets').orderByChild('createdAt').on('value', function(snap) {
+        var list = document.getElementById('ticketsList');
+        list.innerHTML = '';
+        var tickets = [];
+        snap.forEach(function(c) { tickets.push({ id: c.key, v: c.val() }); });
+        tickets.reverse();
+        tickets.forEach(function(t) {
+          var v = t.v;
+          var replies = v.replies || {};
+          var repliesHtml = '';
+          for (var k in replies) {
+            var r = replies[k];
+            repliesHtml += '<div class="reply ' + (r.isAdmin ? 'admin' : '') + '">' + escapeHtml(r.message) + '</div>';
+          }
+          var replyInput = '<textarea placeholder="Reply as admin..." class="reply-text" data-tid="' + t.id + '"></textarea><button type="button" class="reply-btn" data-tid="' + t.id + '">Send reply</button>';
+          var div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML =
+            '<div class="ticket-row">' +
+              '<div class="ticket-info">' +
+                '<strong>' + escapeHtml(v.subject) + '</strong><br>' +
+                (v.userEmail || '') + ' · ' + (v.status || 'open') +
+              '</div>' +
+            '</div>' +
+            '<div class="ticket-detail">' +
+              '<p>' + escapeHtml(v.message) + '</p>' +
+              repliesHtml +
+              replyInput +
+            '</div>';
+          list.appendChild(div);
+        });
+        if (tickets.length === 0) list.innerHTML = '<p class="loading">No tickets.</p>';
+
+        list.querySelectorAll('.reply-btn').forEach(function(btn) {
+          btn.onclick = function() {
+            var tid = btn.getAttribute('data-tid');
+            var textarea = list.querySelector('.reply-text[data-tid="' + tid + '"]');
+            var msg = textarea.value.trim();
+            if (!msg) return;
+            db.ref('tickets/' + tid + '/replies').push({
+              message: msg,
+              isAdmin: true,
+              createdAt: firebase.database.ServerValue.TIMESTAMP
+            }).then(function() {
+              db.ref('tickets/' + tid).update({ status: 'replied' });
+              textarea.value = '';
+            });
+          };
+        });
+      });
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      var d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    checkIp();
+  </script>
+</body>
+</html>

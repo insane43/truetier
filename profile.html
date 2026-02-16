@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile – TrueTier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+  <style>
+    :root {
+      --bg: #08080a;
+      --surface: #0f0e12;
+      --border: #1e1c24;
+      --accent: #ff4655;
+      --text: #f4f3f6;
+      --text-muted: #9c98a4;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2rem;
+      background: rgba(15, 14, 18, 0.95);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { color: var(--accent); font-size: 1.4rem; font-weight: 700; text-decoration: none; }
+    .nav a { color: var(--text-muted); text-decoration: none; margin-left: 1rem; }
+    .nav a:hover, .nav a.active { color: var(--accent); }
+    main { max-width: 560px; margin: 0 auto; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--text); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .profile-head {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+    .profile-head img {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--border);
+    }
+    .profile-head .name-and-badges { flex: 1; }
+    .profile-head .display-name { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-community { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+    .badge-customer { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .card label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .card .value { color: var(--text); margin-bottom: 1rem; }
+    .card .email { color: var(--accent); }
+    .pfp-upload { margin-top: 0.5rem; }
+    .pfp-upload input[type="file"] { padding: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+    .saving { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem; }
+    .danger-zone {
+      margin-top: 1.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
+    .danger-zone p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+    .btn { display: inline-block; padding: 0.6rem 1.2rem; background: var(--border); border-radius: 10px; color: var(--text); text-decoration: none; font-size: 0.95rem; border: none; cursor: pointer; font-family: inherit; }
+    .btn:hover { background: var(--accent); color: #fff; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #e63d4d; }
+    .btn-danger { background: transparent; color: #ef4444; border: 1px solid #ef4444; }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.15); }
+    a.btn { margin-right: 0.5rem; margin-top: 0.5rem; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+      z-index: 100; display: none; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      width: 100%; max-width: 400px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+    }
+    .modal h3 { font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--text); }
+    .modal p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; }
+    .modal label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.35rem; }
+    .modal input {
+      width: 100%; padding: 0.65rem 1rem; margin-bottom: 1rem;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-family: inherit; font-size: 1rem;
+    }
+    .modal .actions { display: flex; gap: 0.75rem; }
+    .modal .actions button { flex: 1; padding: 0.65rem; border-radius: 10px; font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; }
+    .modal .actions .cancel { background: var(--border); color: var(--text); }
+    .modal .actions .confirm-danger { background: #dc2626; color: #fff; }
+    .modal .actions .confirm-danger:hover { background: #b91c1c; }
+    .modal .error { font-size: 0.85rem; color: #ef4444; margin-top: -0.5rem; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">TrueTier</a>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="profile.html" class="active">Profile</a>
+      <a href="chat.html" id="navChat" style="display:none;">Support chat</a>
+    </nav>
+  </header>
+  <main>
+    <h1>Your profile</h1>
+    <div class="card">
+      <div class="profile-head">
+        <img id="profileImg" src="" alt="Profile">
+        <div class="name-and-badges">
+          <div class="display-name" id="profileName">–</div>
+          <div class="badges" id="profileBadges"></div>
+        </div>
+      </div>
+      <label>Profile picture</label>
+      <div class="pfp-upload">
+        <input type="file" id="pfpInput" accept="image/*">
+        <p class="saving" id="pfpSaving" style="display:none;">Saving…</p>
+      </div>
+      <label>Display name</label>
+      <p class="value" id="profileName2">–</p>
+      <label>Valorant name (Riot ID)</label>
+      <p class="value" id="profileValorant">–</p>
+      <label>Email</label>
+      <p class="value email" id="profileEmail">–</p>
+      <div class="danger-zone">
+        <p>Permanently delete your account and all associated data. This cannot be undone.</p>
+        <button type="button" class="btn btn-danger" id="btnDeleteAccount">Delete account</button>
+      </div>
+      <a href="index.html" class="btn">Back to home</a>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h3>Delete account</h3>
+      <p>Enter your password to confirm. Your profile, data, and account will be permanently removed.</p>
+      <label for="deletePassword">Password</label>
+      <input type="password" id="deletePassword" placeholder="Your password">
+      <p class="error" id="deleteError" style="display:none;"></p>
+      <div class="actions">
+        <button type="button" class="cancel" id="deleteCancel">Cancel</button>
+        <button type="button" class="confirm-danger" id="deleteConfirm">Delete my account</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Ir6slVIVLH2ax4Ypd7mgowhIXIl_Qhk",
+      authDomain: "truetier-9567f.firebaseapp.com",
+      databaseURL: "https://truetier-9567f-default-rtdb.firebaseio.com",
+      projectId: "truetier-9567f",
+      storageBucket: "truetier-9567f.firebasestorage.app",
+      messagingSenderId: "112020148911",
+      appId: "1:112020148911:web:ca2338326009d12656ba5a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const storage = firebase.storage();
+
+    auth.onAuthStateChanged(function(user) {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (!user.emailVerified) {
+        window.location.href = 'login.html';
+        return;
+      }
+      var email = user.email || '';
+      var defaultName = email.split('@')[0] || 'User';
+      var defaultImg = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(email || 'U') + '&background=1e1c24&color=ff4655';
+      document.getElementById('profileEmail').textContent = email;
+      document.getElementById('profileName').textContent = defaultName;
+      document.getElementById('profileName2').textContent = defaultName;
+      document.getElementById('profileValorant').textContent = '–';
+      document.getElementById('profileImg').src = defaultImg;
+      db.ref('users/' + user.uid).once('value', function(snap) {
+        var d = snap.val();
+        if (d) {
+          if (d.displayName) {
+            document.getElementById('profileName').textContent = d.displayName;
+            document.getElementById('profileName2').textContent = d.displayName;
+          }
+          if (d.valorantName) document.getElementById('profileValorant').textContent = d.valorantName;
+          if (d.photoURL) document.getElementById('profileImg').src = d.photoURL;
+          var badges = d.badges || {};
+          var html = '';
+          if (badges.community) html += '<span class="badge badge-community">Community</span>';
+          if (badges.customer) {
+            html += '<span class="badge badge-customer">Customer</span>';
+            document.getElementById('navChat').style.display = 'inline';
+          }
+          document.getElementById('profileBadges').innerHTML = html || '';
+        }
+      });
+    });
+
+    document.getElementById('pfpInput').onchange = function() {
+      var file = this.files[0];
+      if (!file || !auth.currentUser) return;
+      var uid = auth.currentUser.uid;
+      var saving = document.getElementById('pfpSaving');
+      saving.style.display = 'block';
+      saving.textContent = 'Saving…';
+      var ref = storage.ref('pfp/' + uid + '/' + file.name);
+      ref.put(file).then(function() { return ref.getDownloadURL(); })
+        .then(function(url) {
+          return db.ref('users/' + uid).update({ photoURL: url }).then(function() { return url; });
+        })
+        .then(function(url) {
+          document.getElementById('profileImg').src = url;
+          saving.style.display = 'none';
+          saving.textContent = 'Saved.';
+        })
+        .catch(function(e) {
+          saving.textContent = 'Error: ' + e.message;
+          saving.style.display = 'block';
+        });
+    };
+
+    document.getElementById('btnDeleteAccount').onclick = function() {
+      document.getElementById('deletePassword').value = '';
+      document.getElementById('deleteError').style.display = 'none';
+      document.getElementById('deleteModal').classList.add('show');
+    };
+    document.getElementById('deleteCancel').onclick = function() {
+      document.getElementById('deleteModal').classList.remove('show');
+    };
+    document.getElementById('deleteModal').onclick = function(e) {
+      if (e.target.id === 'deleteModal') document.getElementById('deleteModal').classList.remove('show');
+    };
+    document.getElementById('deleteConfirm').onclick = function() {
+      var user = auth.currentUser;
+      if (!user || !user.email) return;
+      var password = document.getElementById('deletePassword').value;
+      var errEl = document.getElementById('deleteError');
+      if (!password) {
+        errEl.textContent = 'Enter your password.';
+        errEl.style.display = 'block';
+        return;
+      }
+      errEl.style.display = 'none';
+      var credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+      user.reauthenticateWithCredential(credential).then(function() {
+        var uid = user.uid;
+        return Promise.all([
+          db.ref('users/' + uid).remove(),
+          db.ref('chats/' + uid).remove()
+        ]).then(function() {
+          return user.delete();
+        });
+      }).then(function() {
+        document.getElementById('deleteModal').classList.remove('show');
+        window.location.href = 'login.html';
+      }).catch(function(e) {
+        errEl.textContent = e.message || 'Could not delete account.';
+        errEl.style.display = 'block';
+      });
+    };
+
+      </script>
+</body>
+</html>

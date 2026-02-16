@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support chat – TrueTier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg: #08080a;
+      --surface: #0f0e12;
+      --border: #1e1c24;
+      --accent: #ff4655;
+      --text: #f4f3f6;
+      --text-muted: #9c98a4;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Outfit', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); display: flex; flex-direction: column; }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { color: var(--accent); font-size: 1.3rem; font-weight: 700; text-decoration: none; }
+    .nav a { color: var(--text-muted); text-decoration: none; margin-left: 1rem; }
+    .nav a:hover { color: var(--accent); }
+    main { flex: 1; max-width: 640px; margin: 0 auto; width: 100%; padding: 1.5rem; display: flex; flex-direction: column; }
+    .chat-box {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .chat-msg {
+      max-width: 85%;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .chat-msg.admin {
+      align-self: flex-start;
+      background: rgba(255, 70, 85, 0.15);
+      border: 1px solid rgba(255, 70, 85, 0.3);
+    }
+    .chat-msg.me {
+      align-self: flex-end;
+      background: var(--border);
+    }
+    .chat-msg .who { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .chat-input-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .chat-input-row input {
+      flex: 1;
+      padding: 0.7rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    .chat-input-row input:focus { outline: none; border-color: var(--accent); }
+    .chat-input-row button {
+      padding: 0.7rem 1.25rem;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .chat-input-row button:hover { background: #e63d4d; }
+    .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
+    .no-access a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">TrueTier</a>
+    <nav class="nav">
+      <a href="index.html">Home</a>
+      <a href="profile.html">Profile</a>
+    </nav>
+  </header>
+  <main>
+    <div id="noAccess" class="no-access" style="display:none;">
+      <p>Support chat is for customers only. Get the Customer badge after a purchase to chat with us.</p>
+      <a href="index.html">Back to home</a>
+    </div>
+    <div id="chatBox" class="chat-box" style="display:none;">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Type a message...">
+        <button type="button" id="chatSend">Send</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Ir6slVIVLH2ax4Ypd7mgowhIXIl_Qhk",
+      authDomain: "truetier-9567f.firebaseapp.com",
+      databaseURL: "https://truetier-9567f-default-rtdb.firebaseio.com",
+      projectId: "truetier-9567f",
+      storageBucket: "truetier-9567f.firebasestorage.app",
+      messagingSenderId: "112020148911",
+      appId: "1:112020148911:web:ca2338326009d12656ba5a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    auth.onAuthStateChanged(function(user) {
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      if (!user.emailVerified) {
+        window.location.href = 'login.html';
+        return;
+      }
+      db.ref('users/' + user.uid + '/badges/customer').once('value', function(snap) {
+        if (!snap.val()) {
+          document.getElementById('noAccess').style.display = 'block';
+          return;
+        }
+        document.getElementById('chatBox').style.display = 'flex';
+        var chatId = user.uid;
+        db.ref('chats/' + chatId).once('value', function(snap) {
+          if (!snap.exists()) {
+            db.ref('chats/' + chatId).set({
+              participants: [user.uid, 'admin'],
+              updatedAt: firebase.database.ServerValue.TIMESTAMP,
+              messages: {}
+            });
+          }
+        });
+        db.ref('chats/' + chatId + '/messages').orderByChild('createdAt').on('value', function(msnap) {
+            var el = document.getElementById('chatMessages');
+            el.innerHTML = '';
+            msnap.forEach(function(m) {
+              var v = m.val();
+              var div = document.createElement('div');
+              div.className = 'chat-msg ' + (v.isAdmin ? 'admin' : 'me');
+              div.innerHTML = '<div class="who">' + (v.displayName || (v.isAdmin ? 'Admin' : 'You')) + '</div><div>' + (v.text || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+              el.appendChild(div);
+            });
+            el.scrollTop = el.scrollHeight;
+        });
+        document.getElementById('chatSend').onclick = function() {
+            var input = document.getElementById('chatInput');
+            var text = input.value.trim();
+            if (!text) return;
+            db.ref('users/' + user.uid).once('value', function(s) {
+              var d = s.val();
+              db.ref('chats/' + chatId + '/messages').push({
+                text: text,
+                isAdmin: false,
+                displayName: (d && d.displayName) || user.email.split('@')[0],
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+              }).then(function() {
+                db.ref('chats/' + chatId).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
+                input.value = '';
+              });
+            });
+          };
+          document.getElementById('chatInput').onkeydown = function(e) {
+          if (e.key === 'Enter') document.getElementById('chatSend').click();
+        };
+      });
+    });
+  </script>
+</body>
+</html>
