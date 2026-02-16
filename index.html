@@ -444,6 +444,9 @@
     .modal .actions button { flex: 1; padding: 0.65rem; border-radius: var(--radius-sm); font-family: inherit; font-size: 0.9rem; font-weight: 500; cursor: pointer; border: none; }
     .modal .actions .primary { background: var(--accent); color: #fff; }
     .modal .actions .secondary { background: var(--border); color: var(--text); }
+    .file-input { position: absolute; width: 0.1px; height: 0.1px; opacity: 0; overflow: hidden; z-index: -1; }
+    .file-btn-wrap { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .file-trigger { margin: 0; }
     .ticket-item { padding: 0.75rem 1rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.2s; }
     .ticket-item:hover { border-color: var(--accent); }
     .ticket-item strong { display: block; margin-bottom: 0.25rem; }
@@ -490,8 +493,8 @@
     <div class="nav-actions">
       <a href="/admin" class="btn-outline">Admin</a>
       <a href="/profile" class="btn-outline" id="navProfile" style="display: none;">Profile</a>
+      <a href="/chat" class="btn-outline" id="navChat" style="display:none;">Support chat</a>
       <button type="button" class="btn-outline" id="btnTicket">Support ticket</button>
-      <button type="button" class="btn-outline" id="btnRequestCall">Request call</button>
       <button type="button" class="btn-outline" id="btnReview" style="display:none;">Leave review</button>
       <div class="profile-wrap" id="profileWrap" style="display: none;">
         <button type="button" class="profile-btn" id="profileBtn">
@@ -615,7 +618,10 @@
         <label>Message</label>
         <textarea id="ticketMessage" placeholder="Describe your issue or question..."></textarea>
         <label style="margin-top:0.5rem;">Attach images (optional)</label>
-        <input type="file" id="ticketCreateFiles" accept="image/*" multiple style="margin-bottom:0.5rem;font-size:0.9rem;">
+        <div class="file-btn-wrap">
+          <input type="file" id="ticketCreateFiles" accept="image/*" multiple class="file-input">
+          <button type="button" class="secondary file-trigger" data-for="ticketCreateFiles">Choose files</button>
+        </div>
         <div class="actions">
           <button type="button" class="secondary" id="ticketCancel">Cancel</button>
           <button type="button" class="primary" id="ticketSubmit">Send</button>
@@ -633,7 +639,10 @@
         <label>Add a message</label>
         <textarea id="ticketReplyText" placeholder="Type your message..."></textarea>
         <label style="margin-top:0.5rem;">Attach images (optional)</label>
-        <input type="file" id="ticketReplyFiles" accept="image/*" multiple style="margin-bottom:0.5rem;font-size:0.9rem;">
+        <div class="file-btn-wrap">
+          <input type="file" id="ticketReplyFiles" accept="image/*" multiple class="file-input">
+          <button type="button" class="secondary file-trigger" data-for="ticketReplyFiles">Choose files</button>
+        </div>
         <div class="actions">
           <button type="button" class="primary" id="ticketReplySubmit">Send</button>
         </div>
@@ -663,21 +672,6 @@
 
 We’ll   <div class="toast" id="toast"></div>
   -->’d   <div class="toast" id="toast">  </div>
-
-  <div class="modal-overlay" id="callModal">
-    <div class="modal" onclick="event.stopPropagation()">
-      <h3>Request a call</h3>
-      <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem;">Leave your number and we'll call you back as soon as we can.</p>
-      <label>Phone number</label>
-      <input type="tel" id="callPhone" placeholder="Your phone number">
-      <label>Brief note (optional)</label>
-      <input type="text" id="callNote" placeholder="e.g. best time to call">
-      <div class="actions">
-        <button type="button" class="secondary" id="callCancel">Cancel</button>
-        <button type="button" class="primary" id="callSubmit">Request call</button>
-      </div>
-    </div>
-  </div>
 
   <div class="toast" id="toast"></div>
 
@@ -747,8 +741,12 @@ We’ll   <div class="toast" id="toast"></div>
             badgesHtml += '<span class="badge-mini customer">Customer</span>';
             document.getElementById('btnReview').style.display = 'inline-block';
             document.getElementById('profileDropChat').style.display = 'block';
+            var navChat = document.getElementById('navChat');
+            if (navChat) navChat.style.display = 'inline-block';
           } else {
             document.getElementById('profileDropChat').style.display = 'none';
+            var navChat = document.getElementById('navChat');
+            if (navChat) navChat.style.display = 'none';
           }
           document.getElementById('profileDropBadges').innerHTML = badgesHtml;
         });
@@ -862,34 +860,9 @@ We’ll   <div class="toast" id="toast"></div>
     document.getElementById('ticketModal').onclick = function(e) {
       if (e.target.id === 'ticketModal') document.getElementById('ticketModal').classList.remove('show');
     };
-    document.getElementById('btnRequestCall').onclick = function() {
-      document.getElementById('callPhone').value = '';
-      document.getElementById('callNote').value = '';
-      document.getElementById('callModal').classList.add('show');
-    };
-    document.getElementById('callCancel').onclick = function() {
-      document.getElementById('callModal').classList.remove('show');
-    };
-    document.getElementById('callModal').onclick = function(e) {
-      if (e.target.id === 'callModal') document.getElementById('callModal').classList.remove('show');
-    };
-    document.getElementById('callSubmit').onclick = function() {
-      var phone = document.getElementById('callPhone').value.trim();
-      if (!phone) { showToast('Please enter your phone number.'); return; }
-      var u = auth.currentUser;
-      if (!u) return;
-      var note = document.getElementById('callNote').value.trim();
-      db.ref('callRequests').push({
-        userId: u.uid,
-        userEmail: u.email,
-        phone: phone,
-        note: note || null,
-        createdAt: firebase.database.ServerValue.TIMESTAMP
-      }).then(function() {
-        document.getElementById('callModal').classList.remove('show');
-        showToast('Request received. We\'ll call you soon.');
-      }).catch(function(e) { showToast('Failed: ' + e.message); });
-    };
+    document.querySelectorAll('.file-trigger').forEach(function(btn) {
+      btn.onclick = function() { document.getElementById(btn.getAttribute('data-for')).click(); };
+    });
     document.getElementById('ticketShowMy').onclick = function() {
       ticketShowScreen('list');
       var u = auth.currentUser;

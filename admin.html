@@ -127,8 +127,12 @@
       font-family: inherit;
       font-size: 0.9rem;
     }
-    .card button.secondary { background: var(--border); }
-    .card button.danger { background: #c53030; }
+    .card button.secondary { background: var(--border); color: var(--text); }
+    .card button.primary { background: var(--accent); color: #fff; }
+    .card button.danger { background: #c53030; color: #fff; }
+    .card button.danger:hover { background: #9b2222; }
+    .file-input { position: absolute; width: 0.1px; height: 0.1px; opacity: 0; overflow: hidden; z-index: -1; }
+    .file-btn-wrap { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
     .user-row, .ticket-row {
       display: flex;
       align-items: center;
@@ -172,6 +176,16 @@
     .ticket-attachments img { max-width: 100px; max-height: 100px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
     .loading { color: var(--text-muted); }
     .card.expired-ann { opacity: 0.65; }
+    .call-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300;
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;
+    }
+    .call-overlay.show { display: flex; }
+    .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
+    .call-overlay .call-actions { display: flex; gap: 1rem; }
+    .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
+    .call-overlay .accept-btn { background: #22c55e; color: #fff; }
+    .call-overlay .decline-btn, .call-overlay .hangup-btn { background: #ef4444; color: #fff; }
     .err { color: var(--accent); font-size: 0.9rem; margin-top: 0.5rem; line-height: 1.5; max-width: 100%; }
     .err strong { color: var(--text); }
   </style>
@@ -235,6 +249,17 @@
     <div id="tabTickets" class="tab-panel">
       <p class="loading" id="ticketsList">Loading tickets…</p>
     </div>
+    <div id="adminCallOverlay" class="call-overlay">
+      <h3 id="adminCallStatus">Calling...</h3>
+      <div id="adminCallIncoming" class="call-actions" style="display:none;">
+        <button type="button" class="accept-btn" id="adminCallAccept">Accept</button>
+        <button type="button" class="decline-btn" id="adminCallDecline">Decline</button>
+      </div>
+      <div id="adminCallActive" class="call-actions" style="display:none;">
+        <button type="button" class="hangup-btn" id="adminCallHangup">Hang up</button>
+      </div>
+    </div>
+    <audio id="adminRemoteAudio" autoplay playsinline></audio>
     <div id="tabChats" class="tab-panel">
       <p class="loading" id="chatsList">Loading chats…</p>
     </div>
@@ -531,11 +556,12 @@
           div.innerHTML =
             '<div class="ticket-row">' +
               '<div class="ticket-info"><strong>Chat with customer ' + escapeHtml(customerId) + '</strong></div>' +
+              '<button type="button" class="secondary chat-call-btn" data-cid="' + ch.id + '">Call customer</button>' +
             '</div>' +
             '<div class="ticket-detail">' +
               '<div class="chat-messages" data-cid="' + ch.id + '"></div>' +
               '<textarea placeholder="Reply..." class="chat-reply" data-cid="' + ch.id + '"></textarea>' +
-              '<button type="button" class="reply-btn chat-send-btn" data-cid="' + ch.id + '">Send</button>' +
+              '<button type="button" class="reply-btn primary chat-send-btn" data-cid="' + ch.id + '">Send</button>' +
             '</div>';
           list.appendChild(div);
           var msgEl = div.querySelector('.chat-messages');
@@ -567,6 +593,118 @@
             });
           };
         });
+        var adminCallChatId = null;
+        var adminPc = null;
+        var adminLocalStream = null;
+        function adminHangUp() {
+          var cid = adminCallChatId;
+          adminCallChatId = null;
+          if (adminPc) { adminPc.close(); adminPc = null; }
+          if (adminLocalStream) { adminLocalStream.getTracks().forEach(function(t) { t.stop(); }); adminLocalStream = null; }
+          document.getElementById('adminCallOverlay').classList.remove('show');
+          document.getElementById('adminCallIncoming').style.display = 'none';
+          document.getElementById('adminCallActive').style.display = 'none';
+          if (cid) { db.ref('callSignaling/' + cid).update({ status: 'ended', offer: null, answer: null }); db.ref('callSignaling/' + cid + '/ice').remove(); }
+        }
+        list.querySelectorAll('.chat-call-btn').forEach(function(btn) {
+          btn.onclick = function() {
+            var cid = btn.getAttribute('data-cid');
+            adminCallChatId = cid;
+            document.getElementById('adminCallStatus').textContent = 'Calling customer...';
+            document.getElementById('adminCallActive').style.display = 'flex';
+            document.getElementById('adminCallIncoming').style.display = 'none';
+            document.getElementById('adminCallOverlay').classList.add('show');
+            var callRef = db.ref('callSignaling/' + cid);
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+              adminLocalStream = stream;
+              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+              adminPc = new RTCPeerConnection(config);
+              adminLocalStream.getTracks().forEach(function(t) { adminPc.addTrack(t, adminLocalStream); });
+              adminPc.ontrack = function(e) {
+                document.getElementById('adminRemoteAudio').srcObject = e.streams[0];
+              };
+              adminPc.onicecandidate = function(e) {
+                if (e.candidate) callRef.child('ice').push(e.candidate);
+              };
+              adminPc.createOffer().then(function(offer) {
+                return adminPc.setLocalDescription(offer);
+              }).then(function() {
+                callRef.set({ status: 'calling', initiator: 'admin', offer: adminPc.localDescription });
+                callRef.child('answer').on('value', function(ans) {
+                  var answer = ans.val();
+                  if (adminPc && answer && !adminPc.remoteDescription) adminPc.setRemoteDescription(new RTCSessionDescription(answer));
+                });
+                callRef.child('ice').on('child_added', function(iceSnap) {
+                  var c = iceSnap.val();
+                  if (adminPc && c) adminPc.addIceCandidate(new RTCIceCandidate(c));
+                });
+              }).catch(function(err) {
+                alert('Call failed: ' + err.message);
+                adminHangUp();
+              });
+            }).catch(function(err) {
+              alert('Microphone access needed: ' + err.message);
+            });
+          };
+        });
+        chats.forEach(function(ch) {
+          var cid = ch.id;
+          db.ref('callSignaling/' + cid).on('value', function(s) {
+            var d = s.val();
+            if (!d || d.status !== 'calling' || d.initiator !== 'customer' || !d.offer) return;
+            adminCallChatId = cid;
+            document.getElementById('adminCallStatus').textContent = 'Incoming call from customer';
+            document.getElementById('adminCallIncoming').style.display = 'flex';
+            document.getElementById('adminCallActive').style.display = 'none';
+            document.getElementById('adminCallOverlay').classList.add('show');
+          });
+        });
+        document.getElementById('adminCallAccept').onclick = function() {
+          if (!adminCallChatId) return;
+          var callRef = db.ref('callSignaling/' + adminCallChatId);
+          callRef.once('value', function(s) {
+            var offerData = s.val();
+            if (!offerData || !offerData.offer) return;
+            document.getElementById('adminCallIncoming').style.display = 'none';
+            document.getElementById('adminCallStatus').textContent = 'Connected';
+            document.getElementById('adminCallActive').style.display = 'flex';
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+              adminLocalStream = stream;
+              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+              adminPc = new RTCPeerConnection(config);
+              adminLocalStream.getTracks().forEach(function(t) { adminPc.addTrack(t, adminLocalStream); });
+              adminPc.ontrack = function(e) {
+                document.getElementById('adminRemoteAudio').srcObject = e.streams[0];
+              };
+              adminPc.onicecandidate = function(e) {
+                if (e.candidate) callRef.child('ice').push(e.candidate);
+              };
+              adminPc.setRemoteDescription(new RTCSessionDescription(offerData.offer)).then(function() {
+                return adminPc.createAnswer();
+              }).then(function(answer) {
+                return adminPc.setLocalDescription(answer).then(function() {
+                  callRef.update({ status: 'connected', answer: adminPc.localDescription });
+                });
+              }).catch(function(err) {
+                alert('Accept failed: ' + err.message);
+                adminHangUp();
+              });
+            }).catch(function(err) {
+              alert('Microphone access needed: ' + err.message);
+            });
+          });
+        };
+        document.getElementById('adminCallDecline').onclick = function() {
+          if (adminCallChatId) db.ref('callSignaling/' + adminCallChatId).update({ status: 'ended' });
+          adminHangUp();
+        };
+        document.getElementById('adminCallHangup').onclick = function() {
+          if (adminCallChatId) {
+            db.ref('callSignaling/' + adminCallChatId).update({ status: 'ended', offer: null, answer: null });
+            db.ref('callSignaling/' + adminCallChatId + '/ice').remove();
+          }
+          adminHangUp();
+        };
       });
 
       function replyAttachmentsHtml(arr) {
@@ -591,8 +729,11 @@
           }
           var replyInput = '<textarea placeholder="Reply as admin..." class="reply-text" data-tid="' + t.id + '"></textarea>' +
             '<label style="font-size:0.85rem;margin-top:0.5rem;">Attach images (optional)</label>' +
-            '<input type="file" class="reply-files" data-tid="' + t.id + '" accept="image/*" multiple style="margin-bottom:0.5rem;font-size:0.9rem;">' +
-            '<button type="button" class="reply-btn" data-tid="' + t.id + '">Send reply</button>';
+            '<div class="file-btn-wrap">' +
+            '<input type="file" class="reply-files file-input" data-tid="' + t.id + '" accept="image/*" multiple>' +
+            '<button type="button" class="secondary file-trigger">Choose files</button>' +
+            '</div>' +
+            '<button type="button" class="reply-btn primary" data-tid="' + t.id + '">Send reply</button>';
           var div = document.createElement('div');
           div.className = 'card';
           div.innerHTML =
@@ -601,6 +742,7 @@
                 '<strong>' + escapeHtml(v.subject) + '</strong><br>' +
                 (v.userEmail || '') + ' · ' + (v.status || 'open') +
               '</div>' +
+              '<button type="button" class="danger ticket-delete-btn" data-tid="' + t.id + '">Delete ticket</button>' +
             '</div>' +
             '<div class="ticket-user-profile" data-uid="' + escapeHtml(v.userId || '') + '"><span class="loading">Loading user…</span></div>' +
             '<div class="ticket-detail">' +
@@ -631,6 +773,20 @@
         });
         if (tickets.length === 0) list.innerHTML = '<p class="loading">No tickets.</p>';
 
+        list.querySelectorAll('.ticket-delete-btn').forEach(function(btn) {
+          btn.onclick = function() {
+            var tid = btn.getAttribute('data-tid');
+            if (!confirm('Delete this ticket? This cannot be undone.')) return;
+            db.ref('tickets/' + tid).remove();
+          };
+        });
+        list.querySelectorAll('.file-trigger').forEach(function(btn) {
+          btn.onclick = function() {
+            var card = btn.closest('.card');
+            var fileInput = card.querySelector('.reply-files');
+            if (fileInput) fileInput.click();
+          };
+        });
         list.querySelectorAll('.reply-btn').forEach(function(btn) {
           btn.onclick = function() {
             var tid = btn.getAttribute('data-tid');

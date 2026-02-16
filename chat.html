@@ -96,8 +96,21 @@
       cursor: pointer;
     }
     .chat-input-row button:hover { background: #e63d4d; }
+    .chat-input-row button.call-btn { background: var(--border); color: var(--text); }
+    .chat-input-row button.call-btn:hover { background: #2a2830; }
     .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
     .no-access a { color: var(--accent); }
+    .call-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;
+    }
+    .call-overlay.show { display: flex; }
+    .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
+    .call-overlay .call-actions { display: flex; gap: 1rem; }
+    .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
+    .call-overlay .accept-btn { background: #22c55e; color: #fff; }
+    .call-overlay .decline-btn { background: #ef4444; color: #fff; }
+    .call-overlay .hangup-btn { background: #ef4444; color: #fff; }
   </style>
 </head>
 <body>
@@ -119,9 +132,21 @@
       <div class="chat-input-row">
         <input type="text" id="chatInput" placeholder="Type a message...">
         <button type="button" id="chatSend">Send</button>
+        <button type="button" id="chatCallBtn" class="call-btn" title="Voice call with support">Call</button>
       </div>
     </div>
   </main>
+  <div id="callOverlay" class="call-overlay">
+    <h3 id="callStatusText">Calling...</h3>
+    <div id="callIncomingActions" class="call-actions" style="display:none;">
+      <button type="button" class="accept-btn" id="callAccept">Accept</button>
+      <button type="button" class="decline-btn" id="callDecline">Decline</button>
+    </div>
+    <div id="callActiveActions" class="call-actions" style="display:none;">
+      <button type="button" class="hangup-btn" id="callHangup">Hang up</button>
+    </div>
+  </div>
+  <audio id="remoteAudio" autoplay playsinline></audio>
 
   <script>
     const firebaseConfig = {
@@ -199,6 +224,104 @@
           document.getElementById('chatInput').onkeydown = function(e) {
           if (e.key === 'Enter') document.getElementById('chatSend').click();
         };
+        var callRef = db.ref('callSignaling/' + chatId);
+        var pc = null;
+        var localStream = null;
+        function hangUp() {
+          if (pc) { pc.close(); pc = null; }
+          if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
+          document.getElementById('callOverlay').classList.remove('show');
+          document.getElementById('callIncomingActions').style.display = 'none';
+          document.getElementById('callActiveActions').style.display = 'none';
+          callRef.update({ status: 'ended', offer: null, answer: null });
+          callRef.child('ice').remove();
+        }
+        function showIncoming() {
+          document.getElementById('callStatusText').textContent = 'Incoming call from support';
+          document.getElementById('callIncomingActions').style.display = 'flex';
+          document.getElementById('callOverlay').classList.add('show');
+        }
+        document.getElementById('chatCallBtn').onclick = function() {
+          document.getElementById('callStatusText').textContent = 'Calling support...';
+          document.getElementById('callActiveActions').style.display = 'flex';
+          document.getElementById('callIncomingActions').style.display = 'none';
+          document.getElementById('callOverlay').classList.add('show');
+          navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            localStream = stream;
+            var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+            pc = new RTCPeerConnection(config);
+            localStream.getTracks().forEach(function(t) { pc.addTrack(t, localStream); });
+            pc.ontrack = function(e) {
+              document.getElementById('remoteAudio').srcObject = e.streams[0];
+            };
+            pc.onicecandidate = function(e) {
+              if (e.candidate) callRef.child('ice').push(e.candidate);
+            };
+            pc.createOffer().then(function(offer) {
+              return pc.setLocalDescription(offer);
+            }).then(function() {
+              callRef.set({ status: 'calling', initiator: 'customer', offer: pc.localDescription });
+            }).catch(function(err) {
+              alert('Call failed: ' + err.message);
+              hangUp();
+            });
+          }).catch(function(err) {
+            alert('Microphone access needed: ' + err.message);
+          });
+        };
+        document.getElementById('callAccept').onclick = function() {
+          document.getElementById('callIncomingActions').style.display = 'none';
+          document.getElementById('callStatusText').textContent = 'Connected';
+          document.getElementById('callActiveActions').style.display = 'flex';
+          var offerData = null;
+          callRef.once('value', function(s) {
+            offerData = s.val();
+            if (!offerData || !offerData.offer) return;
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+              localStream = stream;
+              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+              pc = new RTCPeerConnection(config);
+              localStream.getTracks().forEach(function(t) { pc.addTrack(t, localStream); });
+              pc.ontrack = function(e) {
+                document.getElementById('remoteAudio').srcObject = e.streams[0];
+              };
+              pc.onicecandidate = function(e) {
+                if (e.candidate) callRef.child('ice').push(e.candidate);
+              };
+              pc.setRemoteDescription(new RTCSessionDescription(offerData.offer)).then(function() {
+                return pc.createAnswer();
+              }).then(function(answer) {
+                return pc.setLocalDescription(answer).then(function() {
+                  callRef.update({ status: 'connected', answer: pc.localDescription });
+                });
+              }).catch(function(err) {
+                alert('Accept failed: ' + err.message);
+                hangUp();
+              });
+            }).catch(function(err) {
+              alert('Microphone access needed: ' + err.message);
+            });
+          });
+        };
+        document.getElementById('callDecline').onclick = hangUp;
+        document.getElementById('callHangup').onclick = hangUp;
+        callRef.on('value', function(s) {
+          var d = s.val();
+          if (!d || d.status === 'ended') return;
+          if (d.initiator === 'admin' && d.status === 'calling' && d.offer) {
+            showIncoming();
+          }
+        });
+        callRef.child('answer').on('value', function(s) {
+          var answer = s.val();
+          if (pc && answer && !pc.remoteDescription) {
+            pc.setRemoteDescription(new RTCSessionDescription(answer));
+          }
+        });
+        callRef.child('ice').on('child_added', function(s) {
+          var c = s.val();
+          if (pc && c) pc.addIceCandidate(new RTCIceCandidate(c));
+        });
       });
     });
   </script>
