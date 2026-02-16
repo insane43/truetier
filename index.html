@@ -481,24 +481,9 @@
     .admin-status-dot.online { background: #22c55e; }
     .admin-status-dot.away { background: #eab308; }
     .admin-status-dot.dnd { background: var(--accent); }
-    body.auth-pending header,
-    body.auth-pending main,
-    body.auth-pending footer,
-    body.auth-pending .modal-overlay { visibility: hidden; pointer-events: none; }
-    body.auth-pending .auth-loading { display: flex !important; }
-    .auth-loading {
-      display: none;
-      position: fixed; inset: 0;
-      align-items: center; justify-content: center;
-      background: var(--bg);
-      color: var(--text-muted);
-      font-size: 1rem;
-      z-index: 9999;
-    }
   </style>
 </head>
-<body class="auth-pending">
-  <div class="auth-loading" id="authLoading">Checking…</div>
+<body>
   <div class="bg-wrap"></div>
   <header>
     <a href="/" class="logo">TrueTier</a>
@@ -709,17 +694,14 @@ We’ll   <div class="toast" id="toast"></div>
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        document.getElementById('authLoading').textContent = 'Redirecting to login…';
         window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
         auth.signOut();
-        document.getElementById('authLoading').textContent = 'Redirecting to login…';
         window.location.href = '/login';
         return;
       }
-      document.body.classList.remove('auth-pending');
       db.ref('bannedUsers/' + user.uid).once('value', function(snap) {
         if (snap.exists()) {
           document.getElementById('bannedScreen').classList.add('show');

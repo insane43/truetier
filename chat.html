@@ -100,22 +100,9 @@
     .chat-input-row button#chatCallBtn:hover { background: #2a2830; }
     .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
     .no-access a { color: var(--accent); }
-    body.auth-pending header,
-    body.auth-pending main { visibility: hidden; pointer-events: none; }
-    body.auth-pending .auth-loading { display: flex !important; }
-    .auth-loading {
-      display: none;
-      position: fixed; inset: 0;
-      align-items: center; justify-content: center;
-      background: var(--bg);
-      color: var(--text-muted);
-      font-size: 1rem;
-      z-index: 9999;
-    }
   </style>
 </head>
-<body class="auth-pending">
-  <div class="auth-loading" id="authLoading">Checking…</div>
+<body>
   <header>
     <a href="/" class="logo">TrueTier</a>
     <nav class="nav">
@@ -155,18 +142,13 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        var el = document.getElementById('authLoading');
-        if (el) { el.textContent = 'Redirecting to login…'; el.style.display = 'flex'; }
         window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
-        var el = document.getElementById('authLoading');
-        if (el) { el.textContent = 'Redirecting to login…'; el.style.display = 'flex'; }
         window.location.href = '/login';
         return;
       }
-      document.body.classList.remove('auth-pending');
       var chatInitialized = false;
       db.ref('users/' + user.uid + '/badges/customer').on('value', function(snap) {
         if (!snap.val()) {

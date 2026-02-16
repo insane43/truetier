@@ -115,22 +115,9 @@
     .modal .actions .confirm-danger { background: #dc2626; color: #fff; }
     .modal .actions .confirm-danger:hover { background: #b91c1c; }
     .modal .error { font-size: 0.85rem; color: #ef4444; margin-top: -0.5rem; margin-bottom: 0.5rem; }
-    body.auth-pending header,
-    body.auth-pending main { visibility: hidden; pointer-events: none; }
-    body.auth-pending .auth-loading { display: flex !important; }
-    .auth-loading {
-      display: none;
-      position: fixed; inset: 0;
-      align-items: center; justify-content: center;
-      background: var(--bg);
-      color: var(--text-muted);
-      font-size: 1rem;
-      z-index: 9999;
-    }
   </style>
 </head>
-<body class="auth-pending">
-  <div class="auth-loading" id="authLoading">Checking…</div>
+<body>
   <header>
     <a href="/" class="logo">TrueTier</a>
     <nav class="nav">
@@ -202,18 +189,13 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        var el = document.getElementById('authLoading');
-        if (el) { el.textContent = 'Redirecting to login…'; el.style.display = 'flex'; }
         window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
-        var el = document.getElementById('authLoading');
-        if (el) { el.textContent = 'Redirecting to login…'; el.style.display = 'flex'; }
         window.location.href = '/login';
         return;
       }
-      document.body.classList.remove('auth-pending');
       var email = user.email || '';
       var defaultName = email.split('@')[0] || 'User';
       var defaultImg = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(email || 'U') + '&background=1e1c24&color=ff4655';
