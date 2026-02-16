@@ -481,14 +481,30 @@
     .admin-status-dot.online { background: #22c55e; }
     .admin-status-dot.away { background: #eab308; }
     .admin-status-dot.dnd { background: var(--accent); }
+    body.auth-pending header,
+    body.auth-pending main,
+    body.auth-pending footer,
+    body.auth-pending .modal-overlay { visibility: hidden; pointer-events: none; }
+    body.auth-pending .auth-loading { display: flex !important; }
+    .auth-loading {
+      display: none;
+      position: fixed; inset: 0;
+      align-items: center; justify-content: center;
+      background: var(--bg);
+      color: var(--text-muted);
+      font-size: 1rem;
+      z-index: 9999;
+    }
   </style>
 </head>
-<body>
+<body class="auth-pending">
+  <div class="auth-loading" id="authLoading">Checking…</div>
   <div class="bg-wrap"></div>
   <header>
     <a href="/" class="logo">TrueTier</a>
     <div class="nav-actions">
       <a href="/admin" class="btn-outline">Admin</a>
+      <a href="/profile" class="btn-outline" id="navProfile" style="display: none;">Profile</a>
       <button type="button" class="btn-outline" id="btnTicket">Support ticket</button>
       <button type="button" class="btn-outline" id="btnReview" style="display:none;">Leave review</button>
       <div class="profile-wrap" id="profileWrap" style="display: none;">
@@ -693,14 +709,17 @@ We’ll   <div class="toast" id="toast"></div>
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
+        document.getElementById('authLoading').textContent = 'Redirecting to login…';
         window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
         auth.signOut();
+        document.getElementById('authLoading').textContent = 'Redirecting to login…';
         window.location.href = '/login';
         return;
       }
+      document.body.classList.remove('auth-pending');
       db.ref('bannedUsers/' + user.uid).once('value', function(snap) {
         if (snap.exists()) {
           document.getElementById('bannedScreen').classList.add('show');
@@ -714,6 +733,8 @@ We’ll   <div class="toast" id="toast"></div>
           var name = d.displayName || user.email.split('@')[0] || 'User';
           var photo = d.photoURL || user.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(user.email) + '&background=1c1a22&color=ff4655');
           document.getElementById('profileWrap').style.display = 'flex';
+          var navProfile = document.getElementById('navProfile');
+          if (navProfile) navProfile.style.display = 'inline-block';
           document.getElementById('profileName').textContent = name;
           document.getElementById('profileDropName').textContent = name;
           document.getElementById('profileDropEmail').textContent = user.email;
