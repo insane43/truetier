@@ -531,7 +531,6 @@
           div.innerHTML =
             '<div class="ticket-row">' +
               '<div class="ticket-info"><strong>Chat with customer ' + escapeHtml(customerId) + '</strong></div>' +
-              '<button type="button" class="secondary chat-call-btn" data-cid="' + ch.id + '">Call customer</button>' +
             '</div>' +
             '<div class="ticket-detail">' +
               '<div class="chat-messages" data-cid="' + ch.id + '"></div>' +
@@ -565,29 +564,6 @@
             }).then(function() {
               db.ref('chats/' + cid).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
               textarea.value = '';
-            });
-          };
-        });
-        list.querySelectorAll('.chat-call-btn').forEach(function(btn) {
-          btn.onclick = function() {
-            var cid = btn.getAttribute('data-cid');
-            db.ref('users/' + cid).once('value', function(snap) {
-              var u = snap.val();
-              var phone = (u && u.phone) ? u.phone.trim() : '';
-              var name = (u && u.displayName) ? u.displayName : (u && u.email) ? u.email : cid;
-              db.ref('chats/' + cid + '/messages').push({
-                text: '[Admin is calling you now.]',
-                isAdmin: true,
-                displayName: 'Admin',
-                createdAt: firebase.database.ServerValue.TIMESTAMP
-              }).then(function() {
-                db.ref('chats/' + cid).update({ updatedAt: firebase.database.ServerValue.TIMESTAMP });
-              });
-              if (phone) {
-                alert('Call customer: ' + name + '\nPhone: ' + phone + '\n\n(Use your phone to call this number.)');
-              } else {
-                alert('No phone on file for this customer.\nAsk them to add their number in Profile → Phone (for callbacks), or send a message in chat.');
-              }
             });
           };
         });

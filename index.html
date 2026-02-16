@@ -491,6 +491,7 @@
       <a href="/admin" class="btn-outline">Admin</a>
       <a href="/profile" class="btn-outline" id="navProfile" style="display: none;">Profile</a>
       <button type="button" class="btn-outline" id="btnTicket">Support ticket</button>
+      <button type="button" class="btn-outline" id="btnRequestCall">Request call</button>
       <button type="button" class="btn-outline" id="btnReview" style="display:none;">Leave review</button>
       <div class="profile-wrap" id="profileWrap" style="display: none;">
         <button type="button" class="profile-btn" id="profileBtn">
@@ -661,7 +662,24 @@
   </div>
 
 We’ll   <div class="toast" id="toast"></div>
-  <!--’d   <div class="toast" id="toast"></div>
+  -->’d   <div class="toast" id="toast">  </div>
+
+  <div class="modal-overlay" id="callModal">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h3>Request a call</h3>
+      <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem;">Leave your number and we'll call you back as soon as we can.</p>
+      <label>Phone number</label>
+      <input type="tel" id="callPhone" placeholder="Your phone number">
+      <label>Brief note (optional)</label>
+      <input type="text" id="callNote" placeholder="e.g. best time to call">
+      <div class="actions">
+        <button type="button" class="secondary" id="callCancel">Cancel</button>
+        <button type="button" class="primary" id="callSubmit">Request call</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 
   <script>
     const firebaseConfig = {
@@ -843,6 +861,34 @@ We’ll   <div class="toast" id="toast"></div>
     };
     document.getElementById('ticketModal').onclick = function(e) {
       if (e.target.id === 'ticketModal') document.getElementById('ticketModal').classList.remove('show');
+    };
+    document.getElementById('btnRequestCall').onclick = function() {
+      document.getElementById('callPhone').value = '';
+      document.getElementById('callNote').value = '';
+      document.getElementById('callModal').classList.add('show');
+    };
+    document.getElementById('callCancel').onclick = function() {
+      document.getElementById('callModal').classList.remove('show');
+    };
+    document.getElementById('callModal').onclick = function(e) {
+      if (e.target.id === 'callModal') document.getElementById('callModal').classList.remove('show');
+    };
+    document.getElementById('callSubmit').onclick = function() {
+      var phone = document.getElementById('callPhone').value.trim();
+      if (!phone) { showToast('Please enter your phone number.'); return; }
+      var u = auth.currentUser;
+      if (!u) return;
+      var note = document.getElementById('callNote').value.trim();
+      db.ref('callRequests').push({
+        userId: u.uid,
+        userEmail: u.email,
+        phone: phone,
+        note: note || null,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      }).then(function() {
+        document.getElementById('callModal').classList.remove('show');
+        showToast('Request received. We\'ll call you soon.');
+      }).catch(function(e) { showToast('Failed: ' + e.message); });
     };
     document.getElementById('ticketShowMy').onclick = function() {
       ticketShowScreen('list');
