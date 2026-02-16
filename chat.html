@@ -102,16 +102,16 @@
 </head>
 <body>
   <header>
-    <a href="index.html" class="logo">TrueTier</a>
+    <a href="/" class="logo">TrueTier</a>
     <nav class="nav">
-      <a href="index.html">Home</a>
-      <a href="profile.html">Profile</a>
+      <a href="/">Home</a>
+      <a href="/profile">Profile</a>
     </nav>
   </header>
   <main>
     <div id="noAccess" class="no-access" style="display:none;">
       <p>Support chat is for customers only. Get the Customer badge after a purchase to chat with us.</p>
-      <a href="index.html">Back to home</a>
+      <a href="/">Back to home</a>
     </div>
     <div id="chatBox" class="chat-box" style="display:none;">
       <div class="chat-messages" id="chatMessages"></div>
@@ -138,11 +138,11 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       db.ref('users/' + user.uid + '/badges/customer').once('value', function(snap) {

@@ -475,9 +475,9 @@
 <body>
   <div class="bg-wrap"></div>
   <header>
-    <a href="index.html" class="logo">TrueTier</a>
+    <a href="/" class="logo">TrueTier</a>
     <div class="nav-actions">
-      <a href="admin.html" class="btn-outline">Admin</a>
+      <a href="/admin" class="btn-outline">Admin</a>
       <button type="button" class="btn-outline" id="btnTicket">Support ticket</button>
       <button type="button" class="btn-outline" id="btnRequestCall" style="display:none;">Request call</button>
       <button type="button" class="btn-outline" id="btnReview" style="display:none;">Leave review</button>
@@ -491,8 +491,8 @@
           <p class="name" id="profileDropName">–</p>
           <p class="email" id="profileDropEmail">–</p>
           <div class="badges-mini" id="profileDropBadges"></div>
-          <a href="profile.html">View profile</a>
-          <a href="chat.html" id="profileDropChat" style="display:none;">Support chat</a>
+          <a href="/profile">View profile</a>
+          <a href="/chat" id="profileDropChat" style="display:none;">Support chat</a>
           <button type="button" id="btnLogout">Log out</button>
         </div>
       </div>
@@ -525,7 +525,7 @@
               <div class="author-info"><span class="name">T</span><span class="verified">We’d feedback</span></div>
             </div>
           </div>
-      <p style="text-align:center;margin-top:0.75rem;"><a href="reviews.html" style="color:var(--tp-green);font-weight:600;font-size:0.95rem;">See all reviews →</a></p>
+      <p style="text-align:center;margin-top:0.75rem;"><a href="/reviews" style="color:var(--tp-green);font-weight:600;font-size:0.95rem;">See all reviews →</a></p>
     </section>
     <section class="announcements">
       <h2>Announcements</h2>
@@ -583,7 +583,7 @@
     </section>
   </main>
   <footer>
-    <a href="admin.html">Admin login</a>
+    <a href="/admin">Admin login</a>
   </footer>
 
   <div class="banned-screen" id="bannedScreen">
@@ -672,12 +672,12 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
         auth.signOut();
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       db.ref('bannedUsers/' + user.uid).once('value', function(snap) {
@@ -789,7 +789,7 @@
     };
     document.getElementById('btnLogout').onclick = function() {
       auth.signOut();
-      window.location.href = 'login.html';
+      window.location.href = '/login';
     };
     document.addEventListener('click', function(e) {
       var wrap = document.getElementById('profileWrap');

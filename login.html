@@ -523,7 +523,7 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) return;
-      if (user.emailVerified) window.location.href = 'index.html';
+      if (user.emailVerified) window.location.href = '/';
     });
 
     document.getElementById('tabLogin').onclick = function() {
@@ -605,7 +605,7 @@
           err.textContent = 'Please verify your email first.';
           return;
         }
-        window.location.href = 'index.html';
+        window.location.href = '/';
       }).catch(function(e) { err.textContent = e.message || 'Sign in failed'; });
     };
 

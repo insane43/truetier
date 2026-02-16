@@ -117,11 +117,11 @@
 </head>
 <body>
   <header>
-    <a href="index.html" class="logo">TrueTier</a>
+    <a href="/" class="logo">TrueTier</a>
     <nav class="nav">
-      <a href="index.html">Home</a>
-      <a href="profile.html" class="active">Profile</a>
-      <a href="chat.html" id="navChat" style="display:none;">Support chat</a>
+      <a href="/">Home</a>
+      <a href="/profile" class="active">Profile</a>
+      <a href="/chat" id="navChat" style="display:none;">Support chat</a>
     </nav>
   </header>
   <main>
@@ -149,7 +149,7 @@
         <p>Permanently delete your account and all associated data. This cannot be undone.</p>
         <button type="button" class="btn btn-danger" id="btnDeleteAccount">Delete account</button>
       </div>
-      <a href="index.html" class="btn">Back to home</a>
+      <a href="/" class="btn">Back to home</a>
     </div>
   </main>
 
@@ -184,11 +184,11 @@
 
     auth.onAuthStateChanged(function(user) {
       if (!user) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       if (!user.emailVerified) {
-        window.location.href = 'login.html';
+        window.location.href = '/login';
         return;
       }
       var email = user.email || '';
@@ -276,7 +276,7 @@
         });
       }).then(function() {
         document.getElementById('deleteModal').classList.remove('show');
-        window.location.href = 'login.html';
+        window.location.href = '/login';
       }).catch(function(e) {
         errEl.textContent = e.message || 'Could not delete account.';
         errEl.style.display = 'block';
