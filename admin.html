@@ -177,10 +177,12 @@
     .loading { color: var(--text-muted); }
     .card.expired-ann { opacity: 0.65; }
     .call-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300;
-      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9999;
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1.5rem; padding: 2rem;
     }
     .call-overlay.show { display: flex; }
+    .call-overlay.ringing h3 { animation: call-pulse 1s ease-in-out infinite; }
+    @keyframes call-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
     .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
     .call-overlay .call-actions { display: flex; gap: 1rem; }
     .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
@@ -251,6 +253,7 @@
     </div>
     <div id="adminCallOverlay" class="call-overlay">
       <h3 id="adminCallStatus">Calling...</h3>
+      <p id="adminCallSubtext" style="color:var(--text-muted);font-size:0.95rem;"></p>
       <div id="adminCallIncoming" class="call-actions" style="display:none;">
         <button type="button" class="accept-btn" id="adminCallAccept">Accept</button>
         <button type="button" class="decline-btn" id="adminCallDecline">Decline</button>
@@ -611,9 +614,11 @@
             var cid = btn.getAttribute('data-cid');
             adminCallChatId = cid;
             document.getElementById('adminCallStatus').textContent = 'Calling customer...';
+            document.getElementById('adminCallSubtext').textContent = 'Waiting for customer to accept...';
             document.getElementById('adminCallActive').style.display = 'flex';
             document.getElementById('adminCallIncoming').style.display = 'none';
             document.getElementById('adminCallOverlay').classList.add('show');
+            document.getElementById('adminCallOverlay').classList.remove('ringing');
             var callRef = db.ref('callSignaling/' + cid);
             navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
               adminLocalStream = stream;
@@ -629,7 +634,8 @@
               adminPc.createOffer().then(function(offer) {
                 return adminPc.setLocalDescription(offer);
               }).then(function() {
-                callRef.set({ status: 'calling', initiator: 'admin', offer: adminPc.localDescription });
+                var desc = adminPc.localDescription;
+                callRef.set({ status: 'calling', initiator: 'admin', offer: { type: desc.type, sdp: desc.sdp } });
                 callRef.child('answer').on('value', function(ans) {
                   var answer = ans.val();
                   if (adminPc && answer && !adminPc.remoteDescription) adminPc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -637,6 +643,16 @@
                 callRef.child('ice').on('child_added', function(iceSnap) {
                   var c = iceSnap.val();
                   if (adminPc && c) adminPc.addIceCandidate(new RTCIceCandidate(c));
+                });
+                callRef.child('status').on('value', function(s) {
+                  var st = s.val();
+                  if (st === 'ringing') {
+                    document.getElementById('adminCallStatus').textContent = 'Ringing...';
+                    document.getElementById('adminCallSubtext').textContent = 'Customer is being notified';
+                  } else if (st === 'connected') {
+                    document.getElementById('adminCallStatus').textContent = 'Connected';
+                    document.getElementById('adminCallSubtext').textContent = '';
+                  }
                 });
               }).catch(function(err) {
                 alert('Call failed: ' + err.message);
@@ -651,12 +667,30 @@
           var cid = ch.id;
           db.ref('callSignaling/' + cid).on('value', function(s) {
             var d = s.val();
-            if (!d || d.status !== 'calling' || d.initiator !== 'customer' || !d.offer) return;
+            if (!d || (d.status !== 'calling' && d.status !== 'ringing') || d.initiator !== 'customer' || !d.offer) return;
+            if (adminCallChatId && adminCallChatId !== cid) return;
             adminCallChatId = cid;
             document.getElementById('adminCallStatus').textContent = 'Incoming call from customer';
+            document.getElementById('adminCallSubtext').textContent = 'Accept to talk in your browser';
             document.getElementById('adminCallIncoming').style.display = 'flex';
             document.getElementById('adminCallActive').style.display = 'none';
-            document.getElementById('adminCallOverlay').classList.add('show');
+            document.getElementById('adminCallOverlay').classList.add('show', 'ringing');
+            db.ref('callSignaling/' + cid).update({ status: 'ringing' });
+          });
+        });
+        db.ref('callSignaling').on('value', function(snap) {
+          if (adminCallChatId) return;
+          snap.forEach(function(child) {
+            var d = child.val();
+            if (!d || (d.status !== 'calling' && d.status !== 'ringing') || d.initiator !== 'customer' || !d.offer) return;
+            var cid = child.key;
+            adminCallChatId = cid;
+            document.getElementById('adminCallStatus').textContent = 'Incoming call from customer';
+            document.getElementById('adminCallSubtext').textContent = 'Accept to talk in your browser';
+            document.getElementById('adminCallIncoming').style.display = 'flex';
+            document.getElementById('adminCallActive').style.display = 'none';
+            document.getElementById('adminCallOverlay').classList.add('show', 'ringing');
+            db.ref('callSignaling/' + cid).update({ status: 'ringing' });
           });
         });
         document.getElementById('adminCallAccept').onclick = function() {
@@ -666,7 +700,9 @@
             var offerData = s.val();
             if (!offerData || !offerData.offer) return;
             document.getElementById('adminCallIncoming').style.display = 'none';
+            document.getElementById('adminCallOverlay').classList.remove('ringing');
             document.getElementById('adminCallStatus').textContent = 'Connected';
+            document.getElementById('adminCallSubtext').textContent = '';
             document.getElementById('adminCallActive').style.display = 'flex';
             navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
               adminLocalStream = stream;
@@ -683,7 +719,8 @@
                 return adminPc.createAnswer();
               }).then(function(answer) {
                 return adminPc.setLocalDescription(answer).then(function() {
-                  callRef.update({ status: 'connected', answer: adminPc.localDescription });
+                  var desc = adminPc.localDescription;
+                  callRef.update({ status: 'connected', answer: { type: desc.type, sdp: desc.sdp } });
                 });
               }).catch(function(err) {
                 alert('Accept failed: ' + err.message);

@@ -101,11 +101,14 @@
     .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
     .no-access a { color: var(--accent); }
     .call-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200;
-      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; padding: 2rem;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999;
+      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1.5rem; padding: 2rem;
     }
     .call-overlay.show { display: flex; }
+    .call-overlay.ringing .call-status-text { animation: call-pulse 1s ease-in-out infinite; }
+    @keyframes call-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
     .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
+    .call-overlay .call-status-text { font-size: 1.1rem; color: var(--text-muted); }
     .call-overlay .call-actions { display: flex; gap: 1rem; }
     .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
     .call-overlay .accept-btn { background: #22c55e; color: #fff; }
@@ -138,6 +141,7 @@
   </main>
   <div id="callOverlay" class="call-overlay">
     <h3 id="callStatusText">Calling...</h3>
+    <p class="call-status-text" id="callStatusSubtext"></p>
     <div id="callIncomingActions" class="call-actions" style="display:none;">
       <button type="button" class="accept-btn" id="callAccept">Accept</button>
       <button type="button" class="decline-btn" id="callDecline">Decline</button>
@@ -230,22 +234,27 @@
         function hangUp() {
           if (pc) { pc.close(); pc = null; }
           if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
-          document.getElementById('callOverlay').classList.remove('show');
+          document.getElementById('callOverlay').classList.remove('show', 'ringing');
           document.getElementById('callIncomingActions').style.display = 'none';
           document.getElementById('callActiveActions').style.display = 'none';
+          document.getElementById('callStatusSubtext').textContent = '';
           callRef.update({ status: 'ended', offer: null, answer: null });
           callRef.child('ice').remove();
         }
         function showIncoming() {
           document.getElementById('callStatusText').textContent = 'Incoming call from support';
+          document.getElementById('callStatusSubtext').textContent = 'Accept to talk in your browser';
           document.getElementById('callIncomingActions').style.display = 'flex';
-          document.getElementById('callOverlay').classList.add('show');
+          document.getElementById('callActiveActions').style.display = 'none';
+          document.getElementById('callOverlay').classList.add('show', 'ringing');
         }
         document.getElementById('chatCallBtn').onclick = function() {
           document.getElementById('callStatusText').textContent = 'Calling support...';
+          document.getElementById('callStatusSubtext').textContent = 'Waiting for support to accept...';
           document.getElementById('callActiveActions').style.display = 'flex';
           document.getElementById('callIncomingActions').style.display = 'none';
           document.getElementById('callOverlay').classList.add('show');
+          document.getElementById('callOverlay').classList.remove('ringing');
           navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
             localStream = stream;
             var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -260,7 +269,8 @@
             pc.createOffer().then(function(offer) {
               return pc.setLocalDescription(offer);
             }).then(function() {
-              callRef.set({ status: 'calling', initiator: 'customer', offer: pc.localDescription });
+              var desc = pc.localDescription;
+              callRef.set({ status: 'calling', initiator: 'customer', offer: { type: desc.type, sdp: desc.sdp } });
             }).catch(function(err) {
               alert('Call failed: ' + err.message);
               hangUp();
@@ -292,7 +302,8 @@
                 return pc.createAnswer();
               }).then(function(answer) {
                 return pc.setLocalDescription(answer).then(function() {
-                  callRef.update({ status: 'connected', answer: pc.localDescription });
+                  var desc = pc.localDescription;
+                  callRef.update({ status: 'connected', answer: { type: desc.type, sdp: desc.sdp } });
                 });
               }).catch(function(err) {
                 alert('Accept failed: ' + err.message);
@@ -307,15 +318,35 @@
         document.getElementById('callHangup').onclick = hangUp;
         callRef.on('value', function(s) {
           var d = s.val();
-          if (!d || d.status === 'ended') return;
-          if (d.initiator === 'admin' && d.status === 'calling' && d.offer) {
+          if (!d) return;
+          if (d.status === 'ended') {
+            document.getElementById('callOverlay').classList.remove('show', 'ringing');
+            return;
+          }
+          if (d.initiator === 'admin' && (d.status === 'calling' || d.status === 'ringing') && d.offer) {
             showIncoming();
+            callRef.update({ status: 'ringing' });
+          }
+          if (d.status === 'connected') {
+            document.getElementById('callStatusText').textContent = 'Connected';
+            document.getElementById('callStatusSubtext').textContent = '';
+            document.getElementById('callOverlay').classList.remove('ringing');
           }
         });
         callRef.child('answer').on('value', function(s) {
           var answer = s.val();
           if (pc && answer && !pc.remoteDescription) {
             pc.setRemoteDescription(new RTCSessionDescription(answer));
+          }
+        });
+        callRef.child('status').on('value', function(s) {
+          var status = s.val();
+          if (status === 'ringing') {
+            document.getElementById('callStatusText').textContent = 'Ringing...';
+            document.getElementById('callStatusSubtext').textContent = 'Support is being notified';
+          } else if (status === 'connected') {
+            document.getElementById('callStatusText').textContent = 'Connected';
+            document.getElementById('callStatusSubtext').textContent = '';
           }
         });
         callRef.child('ice').on('child_added', function(s) {
