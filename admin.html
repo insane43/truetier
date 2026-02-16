@@ -6,131 +6,155 @@
   <title>Admin – TrueTier</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
   <style>
     :root {
-      --bg: #0c0b0d;
-      --bg-card: #141216;
-      --border: #2a2528;
+      --bg: #050508;
+      --bg-card: #0c0b10;
+      --border: #1e1c28;
       --accent: #ff4655;
-      --text: #f0eef0;
-      --text-muted: #8a858a;
+      --accent-hover: #ff5c6a;
+      --text: #f4f3f8;
+      --text-muted: #8c8898;
       --radius: 12px;
+      --radius-pill: 999px;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Outfit', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); }
     .gate-screen, .auth-screen, .panel-screen { display: none; padding: 2rem; max-width: 480px; margin: 0 auto; text-align: center; }
-    .gate-screen.show, .auth-screen.show, .panel-screen.show { display: block; }
-    .gate-screen h2, .auth-screen h2 { color: var(--accent); margin-bottom: 0.5rem; }
+    .gate-screen.show, .auth-screen.show, .panel-screen.show { display: block; animation: fadeIn 0.4s var(--ease-out); }
+    .gate-screen h2, .auth-screen h2 { color: var(--accent); margin-bottom: 0.5rem; font-weight: 700; }
     .gate-screen p, .auth-screen p { color: var(--text-muted); }
     .back-home {
       display: inline-block;
       margin-top: 1.25rem;
-      padding: 0.5rem 1rem;
+      padding: 0.6rem 1.2rem;
       color: var(--text-muted);
       text-decoration: none;
       font-size: 0.9rem;
+      font-weight: 500;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
-      transition: color 0.2s, border-color 0.2s, background 0.2s;
+      border-radius: var(--radius-pill);
+      transition: all 0.25s var(--ease-out);
     }
-    .back-home:hover { color: var(--accent); border-color: var(--accent); background: rgba(255, 70, 85, 0.08); }
+    .back-home:hover { color: var(--accent); border-color: var(--accent); background: rgba(255, 70, 85, 0.1); transform: translateY(-1px); }
     .panel-screen .back-home { margin-top: 0; margin-bottom: 1rem; }
     .auth-screen input {
       width: 100%;
-      padding: 0.75rem 1rem;
+      padding: 0.8rem 1rem;
       margin-bottom: 1rem;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius);
       color: var(--text);
       font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
     }
+    .auth-screen input:focus { outline: none; border-color: var(--accent); }
     .auth-screen button {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.85rem;
       background: var(--accent);
       border: none;
-      border-radius: 10px;
+      border-radius: var(--radius-pill);
       color: #fff;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
+      font-size: 1rem;
+      transition: all 0.25s var(--ease-out);
     }
+    .auth-screen button:hover { background: var(--accent-hover); transform: translateY(-1px); }
     .panel-screen { max-width: 900px; text-align: left; }
-    .panel-screen h1 { font-size: 1.5rem; margin-bottom: 1rem; color: var(--accent); }
+    .panel-screen h1 { font-size: 1.6rem; margin-bottom: 1rem; color: var(--accent); font-weight: 700; letter-spacing: -0.02em; }
     .admin-status-bar {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       margin-bottom: 1.5rem;
-      padding: 0.6rem 1rem;
+      padding: 0.75rem 1.25rem;
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
+      animation: fadeInUp 0.4s var(--ease-out);
     }
-    .admin-status-bar label { margin: 0; display: inline; }
+    .admin-status-bar label { margin: 0; display: inline; font-size: 0.9rem; color: var(--text-muted); }
     .admin-status-bar select {
-      padding: 0.4rem 0.75rem;
+      padding: 0.5rem 1rem;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-pill);
       color: var(--text);
       font-family: inherit;
+      font-size: 0.9rem;
     }
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .tabs button {
-      padding: 0.6rem 1rem;
+      padding: 0.65rem 1.2rem;
       background: var(--bg-card);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-pill);
       color: var(--text-muted);
       cursor: pointer;
       font-family: inherit;
       font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.25s var(--ease-out);
     }
+    .tabs button:hover { color: var(--text); border-color: rgba(255,70,85,0.4); }
     .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
     .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
+    .tab-panel.active { display: block; animation: fadeInUp 0.35s var(--ease-out); }
     .card {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 1.25rem;
+      padding: 1.35rem;
       margin-bottom: 1rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .card h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--text); }
+    .card:hover { border-color: rgba(255,70,85,0.2); }
+    .card h3 { font-size: 1.05rem; margin-bottom: 0.75rem; color: var(--text); font-weight: 600; }
     .card label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; }
     .card input, .card textarea {
       width: 100%;
-      padding: 0.6rem 1rem;
+      padding: 0.65rem 1rem;
       margin-bottom: 0.75rem;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius);
       color: var(--text);
       font-family: inherit;
     }
+    .card input:focus, .card textarea:focus { outline: none; border-color: var(--accent); }
     .card textarea { min-height: 80px; resize: vertical; }
     .card button {
-      padding: 0.5rem 1rem;
+      padding: 0.6rem 1.2rem;
       background: var(--accent);
       border: none;
-      border-radius: 8px;
+      border-radius: var(--radius-pill);
       color: #fff;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       font-family: inherit;
       font-size: 0.9rem;
+      transition: all 0.25s var(--ease-out);
     }
+    .card button:hover { transform: translateY(-1px); }
     .card button.secondary { background: var(--border); color: var(--text); }
+    .card button.secondary:hover { background: #2a2830; }
     .card button.primary { background: var(--accent); color: #fff; }
-    .card button.danger { background: #c53030; color: #fff; }
-    .card button.danger:hover { background: #9b2222; }
+    .card button.primary:hover { background: var(--accent-hover); }
+    .card button.danger { background: #dc2626; color: #fff; }
+    .card button.danger:hover { background: #b91c1c; }
     .file-input { position: absolute; width: 0.1px; height: 0.1px; opacity: 0; overflow: hidden; z-index: -1; }
     .file-btn-wrap { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
     .user-row, .ticket-row {
@@ -176,18 +200,6 @@
     .ticket-attachments img { max-width: 100px; max-height: 100px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
     .loading { color: var(--text-muted); }
     .card.expired-ann { opacity: 0.65; }
-    .call-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 9999;
-      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1.5rem; padding: 2rem;
-    }
-    .call-overlay.show { display: flex; }
-    .call-overlay.ringing h3 { animation: call-pulse 1s ease-in-out infinite; }
-    @keyframes call-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
-    .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
-    .call-overlay .call-actions { display: flex; gap: 1rem; }
-    .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
-    .call-overlay .accept-btn { background: #22c55e; color: #fff; }
-    .call-overlay .decline-btn, .call-overlay .hangup-btn { background: #ef4444; color: #fff; }
     .err { color: var(--accent); font-size: 0.9rem; margin-top: 0.5rem; line-height: 1.5; max-width: 100%; }
     .err strong { color: var(--text); }
   </style>
@@ -251,18 +263,6 @@
     <div id="tabTickets" class="tab-panel">
       <p class="loading" id="ticketsList">Loading tickets…</p>
     </div>
-    <div id="adminCallOverlay" class="call-overlay">
-      <h3 id="adminCallStatus">Calling...</h3>
-      <p id="adminCallSubtext" style="color:var(--text-muted);font-size:0.95rem;"></p>
-      <div id="adminCallIncoming" class="call-actions" style="display:none;">
-        <button type="button" class="accept-btn" id="adminCallAccept">Accept</button>
-        <button type="button" class="decline-btn" id="adminCallDecline">Decline</button>
-      </div>
-      <div id="adminCallActive" class="call-actions" style="display:none;">
-        <button type="button" class="hangup-btn" id="adminCallHangup">Hang up</button>
-      </div>
-    </div>
-    <audio id="adminRemoteAudio" autoplay playsinline></audio>
     <div id="tabChats" class="tab-panel">
       <p class="loading" id="chatsList">Loading chats…</p>
     </div>
@@ -559,7 +559,6 @@
           div.innerHTML =
             '<div class="ticket-row">' +
               '<div class="ticket-info"><strong>Chat with customer ' + escapeHtml(customerId) + '</strong></div>' +
-              '<button type="button" class="secondary chat-call-btn" data-cid="' + ch.id + '">Call customer</button>' +
             '</div>' +
             '<div class="ticket-detail">' +
               '<div class="chat-messages" data-cid="' + ch.id + '"></div>' +
@@ -596,152 +595,6 @@
             });
           };
         });
-        var adminCallChatId = null;
-        var adminPc = null;
-        var adminLocalStream = null;
-        function adminHangUp() {
-          var cid = adminCallChatId;
-          adminCallChatId = null;
-          if (adminPc) { adminPc.close(); adminPc = null; }
-          if (adminLocalStream) { adminLocalStream.getTracks().forEach(function(t) { t.stop(); }); adminLocalStream = null; }
-          document.getElementById('adminCallOverlay').classList.remove('show');
-          document.getElementById('adminCallIncoming').style.display = 'none';
-          document.getElementById('adminCallActive').style.display = 'none';
-          if (cid) { db.ref('callSignaling/' + cid).update({ status: 'ended', offer: null, answer: null }); db.ref('callSignaling/' + cid + '/ice').remove(); }
-        }
-        list.querySelectorAll('.chat-call-btn').forEach(function(btn) {
-          btn.onclick = function() {
-            var cid = btn.getAttribute('data-cid');
-            adminCallChatId = cid;
-            document.getElementById('adminCallStatus').textContent = 'Calling customer...';
-            document.getElementById('adminCallSubtext').textContent = 'Waiting for customer to accept...';
-            document.getElementById('adminCallActive').style.display = 'flex';
-            document.getElementById('adminCallIncoming').style.display = 'none';
-            document.getElementById('adminCallOverlay').classList.add('show');
-            document.getElementById('adminCallOverlay').classList.remove('ringing');
-            var callRef = db.ref('callSignaling/' + cid);
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-              adminLocalStream = stream;
-              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-              adminPc = new RTCPeerConnection(config);
-              adminLocalStream.getTracks().forEach(function(t) { adminPc.addTrack(t, adminLocalStream); });
-              adminPc.ontrack = function(e) {
-                document.getElementById('adminRemoteAudio').srcObject = e.streams[0];
-              };
-              adminPc.onicecandidate = function(e) {
-                if (e.candidate) callRef.child('ice').push(e.candidate);
-              };
-              adminPc.createOffer().then(function(offer) {
-                return adminPc.setLocalDescription(offer);
-              }).then(function() {
-                var desc = adminPc.localDescription;
-                callRef.set({ status: 'calling', initiator: 'admin', offer: { type: desc.type, sdp: desc.sdp } });
-                callRef.child('answer').on('value', function(ans) {
-                  var answer = ans.val();
-                  if (adminPc && answer && !adminPc.remoteDescription) adminPc.setRemoteDescription(new RTCSessionDescription(answer));
-                });
-                callRef.child('ice').on('child_added', function(iceSnap) {
-                  var c = iceSnap.val();
-                  if (adminPc && c) adminPc.addIceCandidate(new RTCIceCandidate(c));
-                });
-                callRef.child('status').on('value', function(s) {
-                  var st = s.val();
-                  if (st === 'ringing') {
-                    document.getElementById('adminCallStatus').textContent = 'Ringing...';
-                    document.getElementById('adminCallSubtext').textContent = 'Customer is being notified';
-                  } else if (st === 'connected') {
-                    document.getElementById('adminCallStatus').textContent = 'Connected';
-                    document.getElementById('adminCallSubtext').textContent = '';
-                  }
-                });
-              }).catch(function(err) {
-                alert('Call failed: ' + err.message);
-                adminHangUp();
-              });
-            }).catch(function(err) {
-              alert('Microphone access needed: ' + err.message);
-            });
-          };
-        });
-        chats.forEach(function(ch) {
-          var cid = ch.id;
-          db.ref('callSignaling/' + cid).on('value', function(s) {
-            var d = s.val();
-            if (!d || (d.status !== 'calling' && d.status !== 'ringing') || d.initiator !== 'customer' || !d.offer) return;
-            if (adminCallChatId && adminCallChatId !== cid) return;
-            adminCallChatId = cid;
-            document.getElementById('adminCallStatus').textContent = 'Incoming call from customer';
-            document.getElementById('adminCallSubtext').textContent = 'Accept to talk in your browser';
-            document.getElementById('adminCallIncoming').style.display = 'flex';
-            document.getElementById('adminCallActive').style.display = 'none';
-            document.getElementById('adminCallOverlay').classList.add('show', 'ringing');
-            db.ref('callSignaling/' + cid).update({ status: 'ringing' });
-          });
-        });
-        db.ref('callSignaling').on('value', function(snap) {
-          if (adminCallChatId) return;
-          snap.forEach(function(child) {
-            var d = child.val();
-            if (!d || (d.status !== 'calling' && d.status !== 'ringing') || d.initiator !== 'customer' || !d.offer) return;
-            var cid = child.key;
-            adminCallChatId = cid;
-            document.getElementById('adminCallStatus').textContent = 'Incoming call from customer';
-            document.getElementById('adminCallSubtext').textContent = 'Accept to talk in your browser';
-            document.getElementById('adminCallIncoming').style.display = 'flex';
-            document.getElementById('adminCallActive').style.display = 'none';
-            document.getElementById('adminCallOverlay').classList.add('show', 'ringing');
-            db.ref('callSignaling/' + cid).update({ status: 'ringing' });
-          });
-        });
-        document.getElementById('adminCallAccept').onclick = function() {
-          if (!adminCallChatId) return;
-          var callRef = db.ref('callSignaling/' + adminCallChatId);
-          callRef.once('value', function(s) {
-            var offerData = s.val();
-            if (!offerData || !offerData.offer) return;
-            document.getElementById('adminCallIncoming').style.display = 'none';
-            document.getElementById('adminCallOverlay').classList.remove('ringing');
-            document.getElementById('adminCallStatus').textContent = 'Connected';
-            document.getElementById('adminCallSubtext').textContent = '';
-            document.getElementById('adminCallActive').style.display = 'flex';
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-              adminLocalStream = stream;
-              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-              adminPc = new RTCPeerConnection(config);
-              adminLocalStream.getTracks().forEach(function(t) { adminPc.addTrack(t, adminLocalStream); });
-              adminPc.ontrack = function(e) {
-                document.getElementById('adminRemoteAudio').srcObject = e.streams[0];
-              };
-              adminPc.onicecandidate = function(e) {
-                if (e.candidate) callRef.child('ice').push(e.candidate);
-              };
-              adminPc.setRemoteDescription(new RTCSessionDescription(offerData.offer)).then(function() {
-                return adminPc.createAnswer();
-              }).then(function(answer) {
-                return adminPc.setLocalDescription(answer).then(function() {
-                  var desc = adminPc.localDescription;
-                  callRef.update({ status: 'connected', answer: { type: desc.type, sdp: desc.sdp } });
-                });
-              }).catch(function(err) {
-                alert('Accept failed: ' + err.message);
-                adminHangUp();
-              });
-            }).catch(function(err) {
-              alert('Microphone access needed: ' + err.message);
-            });
-          });
-        };
-        document.getElementById('adminCallDecline').onclick = function() {
-          if (adminCallChatId) db.ref('callSignaling/' + adminCallChatId).update({ status: 'ended' });
-          adminHangUp();
-        };
-        document.getElementById('adminCallHangup').onclick = function() {
-          if (adminCallChatId) {
-            db.ref('callSignaling/' + adminCallChatId).update({ status: 'ended', offer: null, answer: null });
-            db.ref('callSignaling/' + adminCallChatId + '/ice').remove();
-          }
-          adminHangUp();
-        };
       });
 
       function replyAttachmentsHtml(arr) {
@@ -796,7 +649,7 @@
               if (!userEl) return;
               var u = userSnap.val();
               if (!u) { userEl.innerHTML = '<span class="loading">User not found</span>'; return; }
-              var photo = u.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(u.displayName || u.email || 'U') + '&background=1e1c24&color=ff4655');
+              var photo = 'https://ui-avatars.com/api/?name=User&background=1e1c24&color=ff4655';
               userEl.innerHTML = '<img src="' + escapeHtml(photo) + '" alt="">' +
                 '<div class="profile-info">' +
                   '<strong>' + escapeHtml(u.displayName || u.email || uid) + '</strong>' +

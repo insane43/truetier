@@ -6,34 +6,84 @@
   <title>Support chat – TrueTier</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <style>
     :root {
-      --bg: #08080a;
-      --surface: #0f0e12;
-      --border: #1e1c24;
+      --bg: #050508;
+      --surface: #0c0b10;
+      --border: #1e1c28;
       --accent: #ff4655;
-      --text: #f4f3f6;
-      --text-muted: #9c98a4;
-      --radius: 12px;
+      --accent-hover: #ff5c6a;
+      --text: #f4f3f8;
+      --text-muted: #8c8898;
+      --radius: 14px;
+      --radius-pill: 999px;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Outfit', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text); display: flex; flex-direction: column; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(255,70,85,0.06) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
     header {
+      position: relative;
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 1rem 1.5rem;
-      background: var(--surface);
+      background: rgba(12, 11, 16, 0.9);
+      backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
+      animation: fadeIn 0.4s var(--ease-out);
     }
-    .logo { color: var(--accent); font-size: 1.3rem; font-weight: 700; text-decoration: none; }
-    .nav a { color: var(--text-muted); text-decoration: none; margin-left: 1rem; }
+    .logo {
+      color: var(--accent);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .logo:hover { color: var(--accent-hover); }
+    .nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-left: 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
     .nav a:hover { color: var(--accent); }
-    main { flex: 1; max-width: 640px; margin: 0 auto; width: 100%; padding: 1.5rem; display: flex; flex-direction: column; }
+    main {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      max-width: 640px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      animation: fadeInUp 0.5s var(--ease-out);
+    }
     .chat-box {
       flex: 1;
       background: var(--surface);
@@ -42,78 +92,81 @@
       display: flex;
       flex-direction: column;
       min-height: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
     .chat-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 1rem;
+      padding: 1.25rem;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 0.85rem;
     }
     .chat-msg {
       max-width: 85%;
-      padding: 0.75rem 1rem;
-      border-radius: var(--radius);
+      padding: 0.85rem 1.15rem;
+      border-radius: 14px;
       font-size: 0.95rem;
-      line-height: 1.4;
+      line-height: 1.5;
+      transition: opacity 0.2s;
     }
     .chat-msg.admin {
       align-self: flex-start;
-      background: rgba(255, 70, 85, 0.15);
-      border: 1px solid rgba(255, 70, 85, 0.3);
+      background: rgba(255, 70, 85, 0.12);
+      border: 1px solid rgba(255, 70, 85, 0.25);
+      border-radius: 14px 14px 14px 4px;
     }
     .chat-msg.me {
       align-self: flex-end;
       background: var(--border);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px 14px 4px 14px;
     }
-    .chat-msg .who { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+    .chat-msg .who { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 600; }
     .chat-input-row {
       display: flex;
-      gap: 0.5rem;
-      padding: 1rem;
+      gap: 0.6rem;
+      padding: 1rem 1.25rem;
       border-top: 1px solid var(--border);
     }
     .chat-input-row input {
       flex: 1;
-      padding: 0.7rem 1rem;
+      padding: 0.8rem 1.2rem;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-pill);
       color: var(--text);
       font-family: inherit;
       font-size: 1rem;
+      transition: border-color 0.2s;
     }
     .chat-input-row input:focus { outline: none; border-color: var(--accent); }
     .chat-input-row button {
-      padding: 0.7rem 1.25rem;
+      padding: 0.8rem 1.5rem;
       background: var(--accent);
       border: none;
-      border-radius: var(--radius);
+      border-radius: var(--radius-pill);
       color: #fff;
       font-family: inherit;
       font-weight: 600;
       cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.25s var(--ease-out);
+      box-shadow: 0 4px 14px rgba(255, 70, 85, 0.3);
     }
-    .chat-input-row button:hover { background: #e63d4d; }
-    .chat-input-row button.call-btn { background: var(--border); color: var(--text); }
-    .chat-input-row button.call-btn:hover { background: #2a2830; }
-    .no-access { text-align: center; padding: 3rem; color: var(--text-muted); }
-    .no-access a { color: var(--accent); }
-    .call-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 9999;
-      display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1.5rem; padding: 2rem;
+    .chat-input-row button:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .chat-input-row button:active { transform: translateY(0); }
+    .no-access {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      animation: fadeInUp 0.5s var(--ease-out);
     }
-    .call-overlay.show { display: flex; }
-    .call-overlay.ringing .call-status-text { animation: call-pulse 1s ease-in-out infinite; }
-    @keyframes call-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.9; } }
-    .call-overlay h3 { color: var(--text); font-size: 1.25rem; }
-    .call-overlay .call-status-text { font-size: 1.1rem; color: var(--text-muted); }
-    .call-overlay .call-actions { display: flex; gap: 1rem; }
-    .call-overlay button { padding: 0.75rem 1.5rem; border-radius: var(--radius); font-family: inherit; font-weight: 600; cursor: pointer; border: none; font-size: 1rem; }
-    .call-overlay .accept-btn { background: #22c55e; color: #fff; }
-    .call-overlay .decline-btn { background: #ef4444; color: #fff; }
-    .call-overlay .hangup-btn { background: #ef4444; color: #fff; }
+    .no-access a { color: var(--accent); font-weight: 600; text-decoration: none; }
+    .no-access a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -135,22 +188,9 @@
       <div class="chat-input-row">
         <input type="text" id="chatInput" placeholder="Type a message...">
         <button type="button" id="chatSend">Send</button>
-        <button type="button" id="chatCallBtn" class="call-btn" title="Voice call with support">Call</button>
       </div>
     </div>
   </main>
-  <div id="callOverlay" class="call-overlay">
-    <h3 id="callStatusText">Calling...</h3>
-    <p class="call-status-text" id="callStatusSubtext"></p>
-    <div id="callIncomingActions" class="call-actions" style="display:none;">
-      <button type="button" class="accept-btn" id="callAccept">Accept</button>
-      <button type="button" class="decline-btn" id="callDecline">Decline</button>
-    </div>
-    <div id="callActiveActions" class="call-actions" style="display:none;">
-      <button type="button" class="hangup-btn" id="callHangup">Hang up</button>
-    </div>
-  </div>
-  <audio id="remoteAudio" autoplay playsinline></audio>
 
   <script>
     const firebaseConfig = {
@@ -228,131 +268,6 @@
           document.getElementById('chatInput').onkeydown = function(e) {
           if (e.key === 'Enter') document.getElementById('chatSend').click();
         };
-        var callRef = db.ref('callSignaling/' + chatId);
-        var pc = null;
-        var localStream = null;
-        function hangUp() {
-          if (pc) { pc.close(); pc = null; }
-          if (localStream) { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
-          document.getElementById('callOverlay').classList.remove('show', 'ringing');
-          document.getElementById('callIncomingActions').style.display = 'none';
-          document.getElementById('callActiveActions').style.display = 'none';
-          document.getElementById('callStatusSubtext').textContent = '';
-          callRef.update({ status: 'ended', offer: null, answer: null });
-          callRef.child('ice').remove();
-        }
-        function showIncoming() {
-          document.getElementById('callStatusText').textContent = 'Incoming call from support';
-          document.getElementById('callStatusSubtext').textContent = 'Accept to talk in your browser';
-          document.getElementById('callIncomingActions').style.display = 'flex';
-          document.getElementById('callActiveActions').style.display = 'none';
-          document.getElementById('callOverlay').classList.add('show', 'ringing');
-        }
-        document.getElementById('chatCallBtn').onclick = function() {
-          document.getElementById('callStatusText').textContent = 'Calling support...';
-          document.getElementById('callStatusSubtext').textContent = 'Waiting for support to accept...';
-          document.getElementById('callActiveActions').style.display = 'flex';
-          document.getElementById('callIncomingActions').style.display = 'none';
-          document.getElementById('callOverlay').classList.add('show');
-          document.getElementById('callOverlay').classList.remove('ringing');
-          navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-            localStream = stream;
-            var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-            pc = new RTCPeerConnection(config);
-            localStream.getTracks().forEach(function(t) { pc.addTrack(t, localStream); });
-            pc.ontrack = function(e) {
-              document.getElementById('remoteAudio').srcObject = e.streams[0];
-            };
-            pc.onicecandidate = function(e) {
-              if (e.candidate) callRef.child('ice').push(e.candidate);
-            };
-            pc.createOffer().then(function(offer) {
-              return pc.setLocalDescription(offer);
-            }).then(function() {
-              var desc = pc.localDescription;
-              callRef.set({ status: 'calling', initiator: 'customer', offer: { type: desc.type, sdp: desc.sdp } });
-            }).catch(function(err) {
-              alert('Call failed: ' + err.message);
-              hangUp();
-            });
-          }).catch(function(err) {
-            alert('Microphone access needed: ' + err.message);
-          });
-        };
-        document.getElementById('callAccept').onclick = function() {
-          document.getElementById('callIncomingActions').style.display = 'none';
-          document.getElementById('callStatusText').textContent = 'Connected';
-          document.getElementById('callActiveActions').style.display = 'flex';
-          var offerData = null;
-          callRef.once('value', function(s) {
-            offerData = s.val();
-            if (!offerData || !offerData.offer) return;
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-              localStream = stream;
-              var config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-              pc = new RTCPeerConnection(config);
-              localStream.getTracks().forEach(function(t) { pc.addTrack(t, localStream); });
-              pc.ontrack = function(e) {
-                document.getElementById('remoteAudio').srcObject = e.streams[0];
-              };
-              pc.onicecandidate = function(e) {
-                if (e.candidate) callRef.child('ice').push(e.candidate);
-              };
-              pc.setRemoteDescription(new RTCSessionDescription(offerData.offer)).then(function() {
-                return pc.createAnswer();
-              }).then(function(answer) {
-                return pc.setLocalDescription(answer).then(function() {
-                  var desc = pc.localDescription;
-                  callRef.update({ status: 'connected', answer: { type: desc.type, sdp: desc.sdp } });
-                });
-              }).catch(function(err) {
-                alert('Accept failed: ' + err.message);
-                hangUp();
-              });
-            }).catch(function(err) {
-              alert('Microphone access needed: ' + err.message);
-            });
-          });
-        };
-        document.getElementById('callDecline').onclick = hangUp;
-        document.getElementById('callHangup').onclick = hangUp;
-        callRef.on('value', function(s) {
-          var d = s.val();
-          if (!d) return;
-          if (d.status === 'ended') {
-            document.getElementById('callOverlay').classList.remove('show', 'ringing');
-            return;
-          }
-          if (d.initiator === 'admin' && (d.status === 'calling' || d.status === 'ringing') && d.offer) {
-            showIncoming();
-            callRef.update({ status: 'ringing' });
-          }
-          if (d.status === 'connected') {
-            document.getElementById('callStatusText').textContent = 'Connected';
-            document.getElementById('callStatusSubtext').textContent = '';
-            document.getElementById('callOverlay').classList.remove('ringing');
-          }
-        });
-        callRef.child('answer').on('value', function(s) {
-          var answer = s.val();
-          if (pc && answer && !pc.remoteDescription) {
-            pc.setRemoteDescription(new RTCSessionDescription(answer));
-          }
-        });
-        callRef.child('status').on('value', function(s) {
-          var status = s.val();
-          if (status === 'ringing') {
-            document.getElementById('callStatusText').textContent = 'Ringing...';
-            document.getElementById('callStatusSubtext').textContent = 'Support is being notified';
-          } else if (status === 'connected') {
-            document.getElementById('callStatusText').textContent = 'Connected';
-            document.getElementById('callStatusSubtext').textContent = '';
-          }
-        });
-        callRef.child('ice').on('child_added', function(s) {
-          var c = s.val();
-          if (pc && c) pc.addIceCandidate(new RTCIceCandidate(c));
-        });
       });
     });
   </script>
